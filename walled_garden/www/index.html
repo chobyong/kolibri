@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HIM Education Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; text-align: center; padding: 50px 20px; background-color: #f4f4f9; color: #333; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    h1 { color: #0056b3; }
+    .button { display: inline-block; background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 1.2em; margin-top: 20px; transition: background-color 0.3s; }
+    .button:hover { background-color: #0056b3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>HIM Education — Local Learning Portal</h1>
+    <p>Welcome! This device hosts an offline learning environment. You will be redirected to Kolibri shortly.</p>
+    <p><a class="button" href="http://10.42.0.1:8080/">Go to Kolibri now</a></p>
+    <small>If you are not redirected automatically, click the button above. Redirect in 10 seconds.</small>
+
+    <div style="margin-top:20px;text-align:left;padding:12px;border-radius:6px;background:#fff7e6;border:1px solid #ffd59e;color:#333">
+      <h3 style="margin:0 0 8px 0;color:#b25e00">About HTTPS warnings</h3>
+      <p style="margin:0 0 8px 0;">If you try to open a secure (https://) site, your browser may show a security warning because this local portal uses a self-signed certificate. To continue to the learning platform:</p>
+      <ol style="margin:0 0 8px 20px;padding:0">
+        <li>Tap or click <strong>Advanced</strong> or <strong>Details</strong> on the warning screen.</li>
+        <li>Choose <strong>Proceed to 10.42.0.1 (unsafe)</strong> or similar to continue to the portal.</li>
+      </ol>
+      <p style="margin:0;color:#555">This is expected for offline, local networks. Do not proceed on public networks that you don't control.</p>
+    </div>
+  </div>
+</body>
+</html>

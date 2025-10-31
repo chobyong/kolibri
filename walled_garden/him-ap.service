@@ -1,0 +1,13 @@
+[Unit]
+Description=HIM Education Access Point
+After=network.target him-firewall.service
+Before=him-dnsmasq.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c 'nmcli connection add type wifi ifname wlp3s0 con-name HIM-GUATE02 autoconnect no ssid HIM-GUATE02 mode ap 802-11-wireless.band bg ipv4.method manual ipv4.addresses "10.42.0.1/24" || true; nmcli connection modify HIM-GUATE02 wifi-sec.key-mgmt wpa-psk wifi-sec.psk "1234567890"; nmcli connection up HIM-GUATE02'
+ExecStop=/bin/bash -c 'nmcli connection down HIM-GUATE02; nmcli connection delete HIM-GUATE02'
+
+[Install]
+WantedBy=multi-user.target
