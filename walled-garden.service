@@ -1,0 +1,11 @@
+[Unit]
+Description=Walled Garden AP (hostapd + dnsmasq starter)
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/him/walled_garden/start_ap.sh
+
+[Install]
+WantedBy=multi-user.target

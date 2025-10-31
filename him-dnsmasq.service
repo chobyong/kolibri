@@ -1,0 +1,12 @@
+[Unit]
+Description=HIM Education AP DHCP Server
+After=network.target
+Before=him-webserver.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dnsmasq --interface=wlp3s0 --no-hosts --no-resolv --bind-interfaces --except-interface=lo --address=/#/10.42.0.1 --dhcp-range=10.42.0.10,10.42.0.254,12h --dhcp-option=option:router,10.42.0.1 --keep-in-foreground
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
