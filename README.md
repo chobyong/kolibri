@@ -15,6 +15,44 @@ You can explore a live demo of the Kolibri platform here: [Kolibri Demo](https:/
  
 ---
  
+### Automated Setup with a Single Command
+
+Once the initial server preparation is done, the rest of the software installation and configuration can be completed with a single command using the `setup_server.sh` script.
+
+**Prerequisites:**
+
+1.  **Prepare the Server:**
+    -   Install Debian and create a user named `him`.
+    -   Log in as `him` and install `git`:
+        ```bash
+        sudo apt-get update && sudo apt-get install -y git
+        ```
+
+2.  **Clone Repository:** Clone this repository into the user's home directory.
+    ```bash
+    git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
+    ```
+
+3.  **Download Kolibri:** Download the Kolibri installer (`.deb` file) from the official website and place it inside the `/home/him/walled_garden` directory.
+
+**Run the Setup Command:**
+
+Navigate to the project directory and execute the following command. It will make the setup script executable and run it with the necessary permissions.
+
+```bash
+cd /home/him/walled_garden && chmod +x ./setup_server.sh && sudo ./setup_server.sh
+```
+
+The script will handle all software installation and system configuration. Once it's finished, you can proceed to **Part 4: Usage**.
+
+---
+
+### Manual Setup Steps
+
+If you prefer to set up the server manually, follow the steps below.
+
+---
+
 ### Part 1: Initial Server Setup
  
 This section covers setting up the base operating system.
@@ -44,7 +82,7 @@ This section covers setting up the base operating system.
 This section describes how to install the Kolibri educational platform by downloading it directly.
  
 1.  **Download the Kolibri Installer:**
-    -   Go to the official download page: [https://learningequality.org/kolibri/download/](https://learningequality.org/kolibri/download/)
+    -   Go to the official download page: https://learningequality.org/kolibri/download/
     -   Under the "Linux (Debian/Ubuntu)" section, download the installer that matches your system architecture (it will likely be 64-bit).
  
 2.  **Install Kolibri:**
@@ -84,13 +122,7 @@ This step configures the Wi-Fi access point and captive portal.
     cd /home/him/walled_garden
     ```
  
-2.  **Install Required Packages:**
- 
-    ```bash
-    sudo apt-get install -y hostapd dnsmasq iptables
-    ```
- 
-3.  **Prepare System:** Stop the default services, as our scripts will manage them manually.
+2.  **Prepare System:** Install required packages and stop the default services, as our scripts will manage them manually.
  
     ```bash
     sudo systemctl stop hostapd
@@ -98,7 +130,7 @@ This step configures the Wi-Fi access point and captive portal.
     ```
  
 4.  **Make Scripts Executable:**
- 
+    
     ```bash
     chmod +x ./start_ap.sh ./stop_ap.sh ./iptables_rules.sh
     ```
