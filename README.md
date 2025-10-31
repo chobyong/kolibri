@@ -1,62 +1,115 @@
 HIM Walled Garden (captive portal)
 =================================
-
+ 
 Overview
 --------
-
-This folder contains configuration and helper scripts to turn the wireless
-interface `wlp3s0` into a simple captive-portal (walled garden) that:
-
-- runs a WPA2-protected Wi‑Fi SSID `HIM-GUATE02` (via hostapd)
-- serves DHCP and DNS (via dnsmasq)
-- redirects DNS for all names to the portal IP and redirects HTTP/HTTPS to the local web server
-- serves a landing page showing "HIM Education server"
-
-Files
------
-
-- `hostapd.conf` — hostapd configuration (open SSID by default)
-- `dnsmasq.conf` — dnsmasq config: DHCP range and DNS hijack to portal
-- `www/index.html` — portal page
-- `start_ap.sh` — script to bring up the AP, start services and apply iptables rules (must be run as root)
-- `iptables_rules.sh` — helper to apply/clear iptables rules
-- `walled-garden.service` — a systemd unit that runs `start_ap.sh` (optional)
-- `webserver.service` — a systemd unit to run the simple Python web server (optional)
-
-Important notes & assumptions
----------------------------
-
-- The wireless interface is assumed to be `wlp3s0` (from `ip link` output you provided). If your interface differs, update `hostapd.conf`, `dnsmasq.conf`, and the scripts.
-- This setup uses an open SSID by default. If you want WPA2, edit `hostapd.conf` and provide a passphrase.
-- Redirecting HTTPS (443 -> 80) breaks TLS and will usually produce certificate errors; the script includes that redirect because captive-portal detection sometimes happens over HTTPS. Consider removing the HTTPS redirect in production and rely on DNS + HTTP intercept.
-- These scripts and units must be run as root (use `sudo`). Adjust file paths if you place them elsewhere.
-
-Quick install steps (Debian/Ubuntu)
-----------------------------------
-
-Run these commands as root or prefix with `sudo`:
-
+ 
+This document provides a complete guide for setting up an offline educational server using Kolibri. The server will broadcast its own Wi-Fi network and provide a "walled garden" or "captive portal" that directs all users to the educational content without needing an internet connection.
+ 
+### Hardware Requirements
+ 
+- **Server:** Minimum 8GB RAM, 512GB NVMe SSD.
+- **Networking:** Must have both an Ethernet port (for initial setup) and a wireless card (to act as the Access Point).
+ 
+---
+ 
+### Part 1: Initial Server Setup
+ 
+This section covers setting up the base operating system.
+ 
+1.  **Install Debian:** Perform a fresh installation of the latest Debian stable release. During installation, ensure the SSH server is enabled and a standard desktop environment is **not** installed to keep the system minimal.
+ 
+2.  **Create User:** Create a standard user named `him`.
+ 
+3.  **Grant Sudo Privileges:** Log in as `root` and add the `him` user to the `sudo` group to allow administrative actions.
+ 
+    ```bash
+    usermod -aG sudo him
+    ```
+ 
+4.  **Log in as `him`:** Log out from the `root` account and log back in as the `him` user. All subsequent commands should be run as `him` (using `sudo` when required).
+ 
+5.  **Disable Power Saving:** To ensure the server is always available, disable suspend and hibernation modes.
+ 
+    ```bash
+    sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+    ```
+ 
+---
+ 
+### Part 2: Kolibri Installation
+ 
+Next, install the Kolibri educational platform.
+ 
+1.  **Add Kolibri Repository:** Kolibri provides a PPA (Personal Package Archive) for easy installation.
+ 
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository ppa:learningequality/kolibri
+    ```
+ 
+2.  **Install Kolibri:**
+ 
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y kolibri
+    ```
+ 
+3.  **Initial Kolibri Setup:**
+    -   After installation, Kolibri will be running on `http://127.0.0.1:8080`.
+    -   You will need to perform the first-time setup to create a superuser and import content channels.
+    -   **Kolibri Superuser:** `him`
+    -   **Password:** `ABCD_1234`
+ 
+4.  **Import Content:** Use the Kolibri interface to import the required educational channels. Alternatively, if you have a cloned NVMe drive with content, you can copy the Kolibri content database.
+ 
+---
+ 
+### Part 3: Walled Garden Setup
+ 
+This step configures the Wi-Fi access point and captive portal.
+ 
+1.  **Clone this Repository:**
+ 
+    ```bash
+    # First, install git
+    sudo apt-get install -y git
+ 
+    # Clone the repository into the user's home directory
+    git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
+    cd /home/him/walled_garden
+    ```
+ 
+2.  **Install Required Packages:**
+ 
+    ```bash
+    sudo apt-get install -y hostapd dnsmasq iptables
+    ```
+ 
+3.  **Prepare System:** Stop the default services, as our scripts will manage them manually.
+ 
+    ```bash
+    sudo systemctl stop hostapd
+    sudo systemctl stop dnsmasq
+    ```
+ 
+4.  **Make Scripts Executable:**
+ 
+    ```bash
+    chmod +x ./start_ap.sh ./stop_ap.sh ./iptables_rules.sh
+    ```
+ 
+---
+ 
+### Part 4: Usage
+ 
+#### Start the Walled Garden
+ 
+Run the start script with `sudo`. This will configure the network, start all services, and apply the firewall rules.
+ 
 ```bash
-apt update
-apt install -y hostapd dnsmasq iptables
-# Stop services if they auto-start; we'll run them with our configs
-systemctl stop hostapd dnsmasq
-
-# Copy files to system locations or run from this directory. If running from here:
-chmod +x ./start_ap.sh ./iptables_rules.sh
-
-# Start the webserver via systemd (optional):
-cp webserver.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now webserver.service
-
-# Start the walled garden (this will start hostapd/dnsmasq and apply rules):
 sudo ./start_ap.sh
-
-# Or install the walled-garden service:
-cp walled-garden.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now walled-garden.service
 ```
 
 How to test
