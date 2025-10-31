@@ -6,6 +6,8 @@ Overview
  
 This document provides a complete guide for setting up an offline educational server using Kolibri. The server will broadcast its own Wi-Fi network and provide a "walled garden" or "captive portal" that directs all users to the educational content without needing an internet connection.
  
+You can explore a live demo of the Kolibri platform here: [Kolibri Demo](https://kolibri-demo.learningequality.org/en/auth/#/signin)
+ 
 ### Hardware Requirements
  
 - **Server:** Minimum 8GB RAM, 512GB NVMe SSD.
@@ -39,21 +41,22 @@ This section covers setting up the base operating system.
  
 ### Part 2: Kolibri Installation
  
-Next, install the Kolibri educational platform.
+This section describes how to install the Kolibri educational platform by downloading it directly.
  
-1.  **Add Kolibri Repository:** Kolibri provides a PPA (Personal Package Archive) for easy installation.
- 
-    ```bash
-    sudo apt-get update
-    sudo apt-get install -y software-properties-common
-    sudo add-apt-repository ppa:learningequality/kolibri
-    ```
+1.  **Download the Kolibri Installer:**
+    -   Go to the official download page: [https://learningequality.org/kolibri/download/](https://learningequality.org/kolibri/download/)
+    -   Under the "Linux (Debian/Ubuntu)" section, download the installer that matches your system architecture (it will likely be 64-bit).
  
 2.  **Install Kolibri:**
+    -   Open a terminal and navigate to the directory where you downloaded the file (e.g., `cd ~/Downloads`).
+    -   Run the following commands, replacing `[installer-filename]` with the actual name of the downloaded file.
  
     ```bash
-    sudo apt-get update
-    sudo apt-get install -y kolibri
+    # Install the downloaded package
+    sudo dpkg -i [installer-filename].deb
+ 
+    # If the above command reports missing dependencies, run this to fix it:
+    sudo apt-get install -f
     ```
  
 3.  **Initial Kolibri Setup:**
