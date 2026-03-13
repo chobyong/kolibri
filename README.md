@@ -67,13 +67,15 @@ This script will:
 
 ### Step 6 — Install NextCloud (Docker)
 
-If NextCloud is not yet running:
-
 ```bash
-sudo apt-get install -y docker.io docker-compose
-# Set up NextCloud container on port 8081
-# (Refer to your NextCloud docker-compose.yml)
+sudo apt-get install -y docker.io docker-compose-plugin
+sudo usermod -aG docker him
+cd /home/him/walled_garden/nextcloud
+sudo ./nextcloud-setup.sh
 ```
+
+Then follow the detailed setup in [nextcloud/README.md](nextcloud/README.md)
+(initial install, trusted domains, app installation, Collabora config).
 
 ### Step 7 — Start the walled garden
 
@@ -234,6 +236,10 @@ File Structure
 ├── www/
 │   └── index.html         # Landing page shown to clients
 ├── ssl/                   # Auto-generated SSL certs (gitignored)
+├── nextcloud/             # NextCloud Docker stack
+│   ├── docker-compose.yml # NextCloud, MariaDB, Collabora, Redis, Nginx
+│   ├── nextcloud-setup.sh # Creates volume dirs and starts stack
+│   └── README.md          # NextCloud setup documentation
 ├── him-ap.service         # Systemd: hotspot (hostapd+dnsmasq)
 ├── him-firewall.service   # Systemd: iptables rules
 ├── him-webserver.service  # Systemd: captive portal server
@@ -276,7 +282,13 @@ cd /home/him/walled_garden
 chmod +x setup_server.sh
 sudo ./setup_server.sh
 
+# Set up NextCloud:
+sudo apt-get install -y docker.io docker-compose-plugin
+cd nextcloud && sudo ./nextcloud-setup.sh
+# Then follow nextcloud/README.md for initial config
+
 # Start:
+cd /home/him/walled_garden
 sudo ./start_ap.sh
 
 # Enable on boot:

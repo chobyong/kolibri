@@ -13,6 +13,8 @@ import threading
 import subprocess
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+ThreadingHTTPServer.allow_reuse_address = True
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 WWW_DIR = os.path.join(ROOT, 'www')
 CERT_DIR = os.path.join(ROOT, 'ssl')
@@ -75,7 +77,6 @@ def ensure_self_signed_cert(hostname='10.42.0.1'):
 
 def run_http(port=80):
     httpd = ThreadingHTTPServer(('', port), CaptiveHandler)
-    httpd.allow_reuse_address = True
     print(f'HTTP captive portal listening on port {port}')
     httpd.serve_forever()
 
@@ -90,7 +91,10 @@ def run_https(port=443):
     httpd = ThreadingHTTPServer(('', port), CaptiveHandler)
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     print(f'HTTPS captive portal listening on port {port} (self-signed cert)')
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except Exception as e:
+        print(f'HTTPS server error: {e}', file=sys.stderr)
 
 
 def main():

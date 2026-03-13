@@ -12,3 +12,13 @@ ssl/key.pem
 ssl/cert.pem
 ssl/*.key
 ssl/*.pem
+
+# Ignore NextCloud runtime data (created by docker volumes)
+nextcloud/html/
+nextcloud/custom_apps/
+nextcloud/config/
+nextcloud/data/
+nextcloud/nextclouddb/
+nextcloud/redis/
+nextcloud/npm-data/
+nextcloud/letsencrypt/
