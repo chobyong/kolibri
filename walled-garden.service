@@ -1,11 +1,12 @@
 [Unit]
-Description=Walled Garden AP (hostapd + dnsmasq starter)
+Description=HIM Education Walled Garden (all-in-one)
 After=network.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/home/him/walled_garden/start_ap.sh
+ExecStop=/home/him/walled_garden/stop_ap.sh
 
 [Install]
 WantedBy=multi-user.target

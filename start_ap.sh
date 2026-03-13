@@ -1,52 +1,58 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Simple helper to configure the wireless interface, start hostapd/dnsmasq
-# and run a local web server for the captive portal.
+# Start the HIM Education walled garden.
+# Uses hostapd for AP, dnsmasq for DHCP/DNS, iptables for walled garden,
+# and a Python captive portal server on port 80/443.
 
-IFACE="wlp3s0"
-AP_IP="192.168.50.1/24"
-PORTAL_IP="192.168.50.1"
-SSID="HIM-GUATE02"
+SSID="him-edu"
 PASSPHRASE="1234567890"
-ROOT_DIR="$(dirname "$0")/www"
-# We'll generate hostapd config at runtime so SSID matches hostname
-HOSTAPD_CONF="$(dirname "$0")/hostapd.conf"
-DNSMASQ_CONF="$(dirname "$0")/dnsmasq.conf"
+AP_IP="10.42.0.1"
+DHCP_RANGE="10.42.0.10,10.42.0.254,255.255.255.0,12h"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+HOSTAPD_CONF="${SCRIPT_DIR}/hostapd.conf"
+DNSMASQ_CONF="${SCRIPT_DIR}/dnsmasq.conf"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo)." >&2
   exit 2
 fi
 
-# Check for required commands
-for cmd in hostapd dnsmasq ip sysctl; do
-  if ! command -v "$cmd" &> /dev/null; then
-    echo "Error: Required command '$cmd' not found. Please install it." >&2
-    exit 1
-  fi
-done
+# Auto-detect wireless interface
+IFACE=$(iw dev 2>/dev/null | awk '/Interface/{print $2}' | head -1)
+if [ -z "$IFACE" ]; then
+  IFACE=$(ls /sys/class/net/ | grep -E '^wl' | head -1)
+fi
+if [ -z "$IFACE" ]; then
+  echo "Error: No wireless interface found." >&2
+  exit 1
+fi
+echo "Using wireless interface: $IFACE"
 
-echo "Disabling NetworkManager for $IFACE to prevent conflicts"
-# Tell NetworkManager to ignore the interface so it doesn't interfere with hostapd.
-nmcli dev set "$IFACE" managed no || echo "Warning: Failed to set interface as unmanaged. This might cause conflicts."
+# Stop any previous instances
+echo "Cleaning up previous instances..."
+pkill hostapd 2>/dev/null || true
+pkill dnsmasq 2>/dev/null || true
+pkill -f "python3 ${SCRIPT_DIR}/server.py" 2>/dev/null || true
+sleep 1
 
-echo "Bringing interface $IFACE up and assigning $AP_IP"
-ip link set "$IFACE" down || true
-ip addr flush dev "$IFACE" || true
-ip addr add "$AP_IP" dev "$IFACE"
+# Tell NetworkManager to leave this interface alone
+echo "Removing interface from NetworkManager..."
+nmcli device set "$IFACE" managed no 2>/dev/null || true
+sleep 1
+
+# Configure the wireless interface
+echo "Configuring interface $IFACE with IP ${AP_IP}/24..."
+ip link set "$IFACE" down 2>/dev/null || true
+ip addr flush dev "$IFACE" 2>/dev/null || true
+ip addr add "${AP_IP}/24" dev "$IFACE"
 ip link set "$IFACE" up
+sleep 1
 
-echo "Enabling IPv4 forwarding"
-sysctl -w net.ipv4.ip_forward=1 >/dev/null
-
-echo "Stopping any existing hostapd/dnsmasq instances"
-pkill hostapd || true
-pkill dnsmasq || true
-
-echo "Generating hostapd config with SSID: $SSID"
+# Generate hostapd config
+echo "Generating hostapd config (SSID: $SSID)..."
 cat > "$HOSTAPD_CONF" <<EOF
-interface=$IFACE
+interface=${IFACE}
 driver=nl80211
 ssid=${SSID}
 hw_mode=g
@@ -56,40 +62,54 @@ auth_algs=1
 wpa=2
 wpa_passphrase=${PASSPHRASE}
 wpa_key_mgmt=WPA-PSK
-wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 EOF
 
-echo "Waiting for interface to be ready..."
-# Add a short delay to allow the interface to initialize before starting hostapd
-sleep 1
+# Generate dnsmasq config
+echo "Generating dnsmasq config..."
+cat > "$DNSMASQ_CONF" <<EOF
+# HIM Education dnsmasq — DHCP + DNS
+interface=${IFACE}
+bind-interfaces
+except-interface=lo
+listen-address=${AP_IP}
+dhcp-range=${DHCP_RANGE}
+dhcp-option=3,${AP_IP}
+dhcp-option=6,${AP_IP}
+# Redirect ALL DNS to portal IP (walled garden)
+address=/#/${AP_IP}
+log-queries
+log-dhcp
+EOF
 
-echo "Starting hostapd"
+# Start hostapd
+echo "Starting hostapd..."
 hostapd -B "$HOSTAPD_CONF"
+sleep 2
 
-echo "Starting dnsmasq"
-# Run dnsmasq with our config file
-# Use --port=0 to disable the DNS server functionality, as systemd-resolved may be using the port.
-dnsmasq --conf-file="$DNSMASQ_CONF" --port=0
+# Start dnsmasq (DHCP + DNS)
+echo "Starting dnsmasq (DHCP + DNS)..."
+dnsmasq --conf-file="$DNSMASQ_CONF" --pid-file=/run/him-dnsmasq.pid
+echo "dnsmasq started (PID $(cat /run/him-dnsmasq.pid))"
 
-echo "Starting local web server on port 80"
-# Use python http.server; systemd unit may be preferable for production
-cd "$ROOT_DIR"
-nohup python3 -m http.server 80 --bind 0.0.0.0 >/dev/null 2>&1 &
+# Apply walled garden firewall rules
+echo "Applying iptables walled garden rules..."
+"$SCRIPT_DIR/iptables_rules.sh" apply "$IFACE" "$AP_IP"
 
-echo "Starting education content server on port 8080"
-# IMPORTANT: Make sure this directory exists and contains your content.
-EDUCATION_DIR="/home/him/education_content"
-if [ ! -d "$EDUCATION_DIR" ]; then
-  echo "Warning: Education content directory not found. Creating '$EDUCATION_DIR'."
-  mkdir -p "$EDUCATION_DIR"
+# Start the captive portal web server
+if ! pgrep -f "python3 ${SCRIPT_DIR}/server.py" >/dev/null 2>&1; then
+  echo "Starting captive portal web server..."
+  nohup python3 "$SCRIPT_DIR/server.py" >"$SCRIPT_DIR/server.log" 2>&1 &
 fi
-cd "$EDUCATION_DIR"
-nohup python3 -m http.server 8080 --bind 0.0.0.0 >/dev/null 2>&1 &
 
-echo "Applying iptables NAT/redirect rules (HTTP and HTTPS -> portal)"
-# Call the dedicated script to apply firewall rules.
-SCRIPT_DIR="$(dirname "$0")"
-"$SCRIPT_DIR/iptables_rules.sh" apply
-
-echo "Walled garden should be running. Connect to SSID '${SSID}' with password '${PASSPHRASE}'."
+echo ""
+echo "========================================="
+echo "  HIM Education Walled Garden is ACTIVE"
+echo "========================================="
+echo "  SSID:      $SSID"
+echo "  Password:  $PASSPHRASE"
+echo "  Portal:    http://${AP_IP}/"
+echo "  Kolibri:   http://${AP_IP}:8080/"
+echo "  NextCloud: http://${AP_IP}:8081/"
+echo "  Interface: $IFACE"
+echo "========================================="

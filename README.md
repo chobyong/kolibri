@@ -1,162 +1,149 @@
-HIM Walled Garden (captive portal)
-=================================
- 
+HIM Education — Walled Garden Server
+=====================================
+
 Overview
 --------
- 
-This document provides a complete guide for setting up an offline educational server using Kolibri. The server will broadcast its own Wi-Fi network and provide a "walled garden" or "captive portal" that directs all users to the educational content without needing an internet connection.
- 
-You can explore a live demo of the Kolibri platform here: [Kolibri Demo](https://kolibri-demo.learningequality.org/en/auth/#/signin)
- 
-### Hardware Requirements
- 
-- **Server:** Minimum 8GB RAM, 512GB NVMe SSD.
-- **Networking:** Must have both an Ethernet port (for initial setup) and a wireless card (to act as the Access Point).
- 
----
- 
-### Automated Setup with a Single Command
 
-Once the initial server preparation is done, the rest of the software installation and configuration can be completed with a single command using the `setup_server.sh` script.
+An offline educational server that broadcasts a Wi-Fi hotspot and redirects all
+connected clients to a landing page with links to **Kolibri** (port 8080) and
+**NextCloud** (port 8081). DHCP and DNS are managed entirely by **NetworkManager**.
 
-**Prerequisites:**
+| Setting     | Value              |
+|-------------|--------------------|
+| SSID        | `him-edu`          |
+| Password    | `1234567890`       |
+| AP IP       | `10.42.0.1`        |
+| Portal      | `http://10.42.0.1` |
+| Kolibri     | `http://10.42.0.1:8080` |
+| NextCloud   | `http://10.42.0.1:8081` |
 
-1.  **Prepare the Server:**
-    -   Install Debian and create a user named `him`.
-    -   Log in as `him` and install `git`:
-        ```bash
-        sudo apt-get update && sudo apt-get install -y git
-        ```
+Architecture
+------------
 
-2.  **Clone Repository:** Clone this repository into the user's home directory.
-    ```bash
-    git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
-    ```
-
-3.  **Download Kolibri:** Download the Kolibri installer (`.deb` file) from the official website and place it inside the `/home/him/walled_garden` directory.
-
-**Run the Setup Command:**
-
-Navigate to the project directory and execute the following command. It will make the setup script executable and run it with the necessary permissions.
-
-```bash
-cd /home/him/walled_garden && chmod +x ./setup_server.sh && sudo ./setup_server.sh
+```
+Client device
+    │
+    ├─ Wi-Fi connects to "him-edu" (WPA2)
+    │
+    ├─ NetworkManager (ipv4.method=shared)
+    │   ├─ DHCP: assigns 10.42.0.x addresses
+    │   └─ DNS:  all domains → 10.42.0.1 (via dnsmasq-shared.d)
+    │
+    ├─ iptables
+    │   ├─ FORWARD DROP (walled garden — no internet)
+    │   ├─ HTTP :80  → redirect to portal
+    │   └─ HTTPS :443 → redirect to portal (cert warning)
+    │
+    └─ Captive Portal (Python server.py on :80/:443)
+        └─ Landing page → links to Kolibri :8080 and NextCloud :8081
 ```
 
-The script will handle all software installation and system configuration. Once it's finished, you can proceed to **Part 4: Usage**.
+Hardware Requirements
+---------------------
 
----
+- A wireless network interface (built-in or USB)
+- Debian/Ubuntu Linux with NetworkManager
 
-### Manual Setup Steps
+Quick Setup
+-----------
 
-If you prefer to set up the server manually, follow the steps below.
+```bash
+# 1. Clone the repository
+git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
+cd /home/him/walled_garden
 
----
+# 2. (Optional) Place Kolibri .deb installer in this directory
 
-### Part 1: Initial Server Setup
- 
-This section covers setting up the base operating system.
- 
-1.  **Install Debian:** Perform a fresh installation of the latest Debian stable release. During installation, ensure the SSH server is enabled and a standard desktop environment is **not** installed to keep the system minimal.
- 
-2.  **Create User:** Create a standard user named `him`.
- 
-3.  **Grant Sudo Privileges:** Log in as `root` and add the `him` user to the `sudo` group to allow administrative actions.
- 
-    ```bash
-    usermod -aG sudo him
-    ```
- 
-4.  **Log in as `him`:** Log out from the `root` account and log back in as the `him` user. All subsequent commands should be run as `him` (using `sudo` when required).
- 
-5.  **Disable Power Saving:** To ensure the server is always available, disable suspend and hibernation modes.
- 
-    ```bash
-    sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-    ```
- 
----
- 
-### Part 2: Kolibri Installation
- 
-This section describes how to install the Kolibri educational platform by downloading it directly.
- 
-1.  **Download the Kolibri Installer:**
-    -   Go to the official download page: https://learningequality.org/kolibri/download/
-    -   Under the "Linux (Debian/Ubuntu)" section, download the installer that matches your system architecture (it will likely be 64-bit).
- 
-2.  **Install Kolibri:**
-    -   Open a terminal and navigate to the directory where you downloaded the file (e.g., `cd ~/Downloads`).
-    -   Run the following commands, replacing `[installer-filename]` with the actual name of the downloaded file.
- 
-    ```bash
-    # Install the downloaded package
-    sudo dpkg -i [installer-filename].deb
- 
-    # If the above command reports missing dependencies, run this to fix it:
-    sudo apt-get install -f
-    ```
- 
-3.  **Initial Kolibri Setup:**
-    -   After installation, Kolibri will be running on `http://127.0.0.1:8080`.
-    -   You will need to perform the first-time setup to create a superuser and import content channels.
-    -   **Kolibri Superuser:** `him`
-    -   **Password:** `ABCD_1234`
- 
-4.  **Import Content:** Use the Kolibri interface to import the required educational channels. Alternatively, if you have a cloned NVMe drive with content, you can copy the Kolibri content database.
- 
----
- 
-### Part 3: Walled Garden Setup
- 
-This step configures the Wi-Fi access point and captive portal.
- 
-1.  **Clone this Repository:**
- 
-    ```bash
-    # First, install git
-    sudo apt-get install -y git
- 
-    # Clone the repository into the user's home directory
-    git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
-    cd /home/him/walled_garden
-    ```
- 
-2.  **Prepare System:** Install required packages and stop the default services, as our scripts will manage them manually.
- 
-    ```bash
-    sudo systemctl stop hostapd
-    sudo systemctl stop dnsmasq
-    ```
- 
-4.  **Make Scripts Executable:**
-    
-    ```bash
-    chmod +x ./start_ap.sh ./stop_ap.sh ./iptables_rules.sh
-    ```
- 
----
- 
-### Part 4: Usage
- 
-#### Start the Walled Garden
- 
-Run the start script with `sudo`. This will configure the network, start all services, and apply the firewall rules.
- 
+# 3. Run setup
+chmod +x setup_server.sh
+sudo ./setup_server.sh
+```
+
+Usage
+-----
+
+### Start manually
+
 ```bash
 sudo ./start_ap.sh
 ```
 
-How to test
------------
+### Stop manually
 
-1. On a client device, connect to the SSID `HIM-GUATE02` using the passphrase `1234567890`.
-2. The client should receive an IP in the `192.168.50.x` range.
-3. Open a browser and try visiting any site; you should be redirected to the portal page.
+```bash
+sudo ./stop_ap.sh
+```
 
-Next steps and hardening
-------------------------
+### Enable on boot (systemd)
 
-- Use `iptables-save` to persist rules or move to `nftables` if preferred.
-- Use a proper web server (nginx) for production and provide a nicer portal with login/terms.
-- For captive-portal detection to work on all OSes, consider returning correct HTTP status codes and headers; sometimes OSes use HTTPS-based probes which complicates interception.
+**Option A — Individual services:**
+```bash
+sudo systemctl enable him-ap him-firewall him-webserver
+sudo systemctl start him-ap him-firewall him-webserver
+```
+
+**Option B — All-in-one service:**
+```bash
+sudo systemctl enable walled-garden
+sudo systemctl start walled-garden
+```
+
+### Check status
+
+```bash
+systemctl status him-ap him-firewall him-webserver
+nmcli connection show him-edu-hotspot
+```
+
+File Structure
+--------------
+
+| File                    | Purpose                                   |
+|-------------------------|-------------------------------------------|
+| `start_ap.sh`           | Start hotspot + firewall + portal          |
+| `stop_ap.sh`            | Stop everything and clean up               |
+| `iptables_rules.sh`     | Apply/clear walled garden firewall rules   |
+| `server.py`             | Captive portal web server (HTTP + HTTPS)   |
+| `www/index.html`        | Landing page served to clients             |
+| `setup_server.sh`       | One-time setup script                      |
+| `him-ap.service`        | Systemd: NetworkManager hotspot            |
+| `him-firewall.service`  | Systemd: iptables rules                    |
+| `him-webserver.service` | Systemd: captive portal web server         |
+| `walled-garden.service` | Systemd: all-in-one start/stop             |
+
+How It Works
+------------
+
+1. **NetworkManager** creates a Wi-Fi AP hotspot with `ipv4.method shared`,
+   which automatically runs an internal dnsmasq for DHCP.
+
+2. A config file in `/etc/NetworkManager/dnsmasq-shared.d/` adds
+   `address=/#/10.42.0.1` so **all DNS queries resolve to the portal IP**.
+
+3. **iptables** blocks FORWARD (no internet access) and redirects ports 80/443
+   to the captive portal.
+
+4. A **Python web server** (server.py) on port 80 serves the landing page.
+   Clients see an "HIM Education" page with buttons for Kolibri and NextCloud.
+
+5. **Kolibri** (port 8080) and **NextCloud** (port 8081) are accessed directly
+   by clients since traffic to the AP IP is not redirected.
+
+Testing
+-------
+
+1. On a client device, connect to Wi-Fi SSID `him-edu` with password `1234567890`
+2. The device should receive an IP in the `10.42.0.x` range
+3. A captive portal popup should appear with the HIM Education landing page
+4. If not, open any `http://` URL in a browser — it will redirect to the portal
+5. Click through to Kolibri or NextCloud
+
+Troubleshooting
+---------------
+
+- **No captive portal popup?** Open `http://neverssl.com` in a browser manually.
+- **HTTPS cert warning?** Expected — the portal uses a self-signed certificate.
+  Click "Advanced" → "Proceed" to continue.
+- **No DHCP address?** Check `nmcli connection show him-edu-hotspot` and
+  verify the wireless interface supports AP mode.
+- **Kolibri/NextCloud unreachable?** Verify they are running on ports 8080/8081.

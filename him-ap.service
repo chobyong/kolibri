@@ -1,13 +1,40 @@
 [Unit]
-Description=HIM Education Access Point
+Description=HIM Education Wi-Fi Access Point
 After=network.target
-Before=him-dnsmasq.service
+Before=him-firewall.service him-webserver.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/bash -c 'nmcli connection add type wifi ifname wlp3s0 con-name HIM-GUATE02 autoconnect no ssid HIM-GUATE02 mode ap 802-11-wireless.band bg ipv4.method manual ipv4.addresses "10.42.0.1/24" || true; nmcli connection modify HIM-GUATE02 wifi-sec.key-mgmt wpa-psk wifi-sec.psk "1234567890"; nmcli connection up HIM-GUATE02'
-ExecStop=/bin/bash -c 'nmcli connection down HIM-GUATE02; nmcli connection delete HIM-GUATE02'
+Type=forking
+PIDFile=/run/hostapd.pid
+Environment=AP_IP=10.42.0.1
+
+ExecStartPre=/bin/bash -c '\
+  IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1); \
+  nmcli device set "$IFACE" managed no 2>/dev/null || true; \
+  sleep 1; \
+  ip link set "$IFACE" down 2>/dev/null || true; \
+  ip addr flush dev "$IFACE" 2>/dev/null || true; \
+  ip addr add 10.42.0.1/24 dev "$IFACE"; \
+  ip link set "$IFACE" up; \
+  sleep 1; \
+  IFACE=$IFACE envsubst < /home/him/walled_garden/hostapd.conf.tmpl > /run/hostapd-him.conf || \
+  sed "s/^interface=.*/interface=$IFACE/" /home/him/walled_garden/hostapd.conf > /run/hostapd-him.conf'
+
+ExecStart=/usr/sbin/hostapd -B -P /run/hostapd.pid /run/hostapd-him.conf
+
+ExecStartPost=/bin/bash -c '\
+  IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1); \
+  sed "s/^interface=.*/interface=$IFACE/" /home/him/walled_garden/dnsmasq.conf > /run/him-dnsmasq.conf; \
+  dnsmasq --conf-file=/run/him-dnsmasq.conf --pid-file=/run/him-dnsmasq.pid'
+
+ExecStop=/bin/bash -c '\
+  IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1); \
+  [ -f /run/him-dnsmasq.pid ] && kill $(cat /run/him-dnsmasq.pid) 2>/dev/null || true; \
+  rm -f /run/him-dnsmasq.pid /run/him-dnsmasq.conf; \
+  kill $(cat /run/hostapd.pid 2>/dev/null) 2>/dev/null || true; \
+  rm -f /run/hostapd.pid /run/hostapd-him.conf; \
+  ip addr flush dev "$IFACE" 2>/dev/null || true; \
+  nmcli device set "$IFACE" managed yes 2>/dev/null || true'
 
 [Install]
 WantedBy=multi-user.target

@@ -1,9 +1,14 @@
-# Ignore runtime-generated configuration files
+# Ignore runtime-generated files
 hostapd.conf
+server.log
+__pycache__/
+*.pyc
 
-# Ignore the education content directory.
-# You can remove the line below if you want to commit your content to Git.
-/education_content/# Ignore private SSL keys
+# Ignore the education content directory
+/education_content/
+
+# Ignore private SSL keys and certs
 ssl/key.pem
+ssl/cert.pem
 ssl/*.key
 ssl/*.pem

@@ -1,12 +1,13 @@
 [Unit]
-Description=HIM Education AP Firewall Rules
-After=network.target
-Before=him-ap.service
+Description=HIM Education Walled Garden Firewall
+After=network.target him-ap.service
+Before=him-webserver.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/bash /home/him/walled_garden/setup_iptables.sh
+ExecStart=/bin/bash /home/him/walled_garden/iptables_rules.sh apply
+ExecStop=/bin/bash /home/him/walled_garden/iptables_rules.sh clear
 
 [Install]
 WantedBy=multi-user.target
