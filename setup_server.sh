@@ -4,7 +4,7 @@ set -euo pipefail
 # HIM Education Server — Automated Setup
 #
 # This script installs all dependencies and configures the system to run
-# the walled garden captive portal. DHCP and DNS are managed by NetworkManager.
+# the walled garden captive portal. DHCP and DNS are managed by dnsmasq.
 #
 # Prerequisites:
 #   1. Debian/Ubuntu with NetworkManager installed
