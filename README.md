@@ -16,84 +16,50 @@ with links to **Kolibri** and **NextCloud** — no internet required.
 
 ---
 
-New Host Installation (Step-by-Step)
-------------------------------------
-
-Follow these steps to set up a fresh machine from scratch.
+Quick Start — Full Installation
+--------------------------------
 
 ### Step 1 — Install the OS
 
-Install **Debian 12** (or Ubuntu Server). During install:
-- Create a user named `him`
-- Enable SSH server (optional, for remote management)
+Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with
+sudo access.
 
-### Step 2 — First boot setup
-
-Log in as `him` and run:
+### Step 2 — Clone and Run
 
 ```bash
-# Add him to sudo group (run as root if needed)
-su -c 'usermod -aG sudo him'
-
-# Re-login for group to take effect, then:
 sudo apt-get update && sudo apt-get install -y git
-```
-
-### Step 3 — Clone this repository
-
-```bash
 git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
 cd /home/him/walled_garden
+chmod +x install.sh
+sudo ./install.sh
 ```
 
-### Step 4 — (Optional) Place the Kolibri installer
+The `install.sh` script handles **everything** in one run:
 
-Download the Kolibri `.deb` from https://learningequality.org/kolibri/download/
-and copy it into `/home/him/walled_garden/`.
+1. **Prerequisites** — Installs git, curl, hostapd, dnsmasq, iptables, python3, openssl, iw
+2. **Docker** — Installs Docker + Compose, adds your user to the `docker` group
+3. **Kolibri** — Installs from local `.deb` or downloads automatically
+4. **NextCloud** — Starts Docker stack, runs initial setup, installs Calendar, Notes, and NextCloud Office (Collabora)
+5. **Walled Garden** — Sets scripts executable, installs systemd services
+6. **Verification** — Checks all components are running
 
-### Step 5 — Run the automated setup
-
-```bash
-chmod +x setup_server.sh
-sudo ./setup_server.sh
-```
-
-This script will:
-- Disable suspend/hibernate (server stays on)
-- Install required packages (`hostapd`, `dnsmasq`, `iptables`, `python3`, `openssl`)
-- Install Kolibri if the `.deb` is present
-- Set file permissions
-- Copy systemd service files to `/etc/systemd/system/`
-
-### Step 6 — Install NextCloud (Docker)
-
-```bash
-sudo apt-get install -y docker.io docker-compose-plugin
-sudo usermod -aG docker him
-cd /home/him/walled_garden/nextcloud
-sudo ./nextcloud-setup.sh
-```
-
-Then follow the detailed setup in [nextcloud/README.md](nextcloud/README.md)
-(initial install, trusted domains, app installation, Collabora config).
-
-### Step 7 — Start the walled garden
+### Step 3 — Start the Walled Garden
 
 ```bash
 sudo ./start_ap.sh
 ```
 
-### Step 8 — (Optional) Enable on boot
+### Step 4 — (Optional) Enable on Boot
 
 ```bash
 sudo systemctl enable walled-garden
 ```
 
-### Step 9 — Test
+### Step 5 — Test
 
-1. On a phone or laptop, connect to Wi-Fi `him-edu` with password `1234567890`
+1. Connect to Wi-Fi `him-edu` (password: `1234567890`)
 2. A captive portal page should appear automatically
-3. If not, open any HTTP URL (e.g. `http://neverssl.com`) in a browser
+3. If not, open `http://neverssl.com` in a browser
 4. The landing page shows buttons for Kolibri and NextCloud
 
 ---
@@ -226,13 +192,12 @@ File Structure
 
 ```
 /home/him/walled_garden/
-├── start_ap.sh            # Start everything
-├── stop_ap.sh             # Stop everything
+├── install.sh             # Full installation script (run this first)
+├── start_ap.sh            # Start the walled garden
+├── stop_ap.sh             # Stop the walled garden
 ├── iptables_rules.sh      # Firewall rules (called by start/stop)
 ├── server.py              # Captive portal web server
-├── setup_server.sh        # One-time installation script
-├── hostapd.conf           # Generated at runtime by start_ap.sh
-├── dnsmasq.conf           # DNS/DHCP config (generated at runtime)
+├── setup_server.sh        # Legacy one-time setup (use install.sh instead)
 ├── www/
 │   └── index.html         # Landing page shown to clients
 ├── ssl/                   # Auto-generated SSL certs (gitignored)
@@ -240,6 +205,12 @@ File Structure
 │   ├── docker-compose.yml # NextCloud, MariaDB, Collabora, Redis, Nginx
 │   ├── nextcloud-setup.sh # Creates volume dirs and starts stack
 │   └── README.md          # NextCloud setup documentation
+├── doc/                   # Detailed documentation
+│   ├── 01-prerequisites.md
+│   ├── 02-walled-garden.md
+│   ├── 03-kolibri.md
+│   ├── 04-nextcloud.md
+│   └── 05-troubleshooting.md
 ├── him-ap.service         # Systemd: hotspot (hostapd+dnsmasq)
 ├── him-firewall.service   # Systemd: iptables rules
 ├── him-webserver.service  # Systemd: captive portal server
@@ -269,32 +240,32 @@ Troubleshooting
 Cloning to a New Machine
 -------------------------
 
-To replicate this server onto another identical machine:
-
 ```bash
 # On the new machine:
 sudo apt-get update && sudo apt-get install -y git
-
 git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
 cd /home/him/walled_garden
-
-# Place Kolibri .deb in this directory if needed, then:
-chmod +x setup_server.sh
-sudo ./setup_server.sh
-
-# Set up NextCloud:
-sudo apt-get install -y docker.io docker-compose-plugin
-cd nextcloud && sudo ./nextcloud-setup.sh
-# Then follow nextcloud/README.md for initial config
-
-# Start:
-cd /home/him/walled_garden
+chmod +x install.sh
+sudo ./install.sh
 sudo ./start_ap.sh
-
-# Enable on boot:
 sudo systemctl enable walled-garden
 ```
 
 For Kolibri content, either:
 - Run the Kolibri setup wizard and import channels over the network, or
 - Copy `/home/him/.kolibri/` from the old machine to the new one.
+
+---
+
+Documentation
+-------------
+
+Detailed documentation is available in the `doc/` folder:
+
+| Document                                              | Contents                                          |
+|-------------------------------------------------------|---------------------------------------------------|
+| [doc/01-prerequisites.md](doc/01-prerequisites.md)    | Hardware, software, and OS requirements            |
+| [doc/02-walled-garden.md](doc/02-walled-garden.md)    | Hotspot, DHCP, DNS, captive portal architecture    |
+| [doc/03-kolibri.md](doc/03-kolibri.md)                | Kolibri installation, content import, management   |
+| [doc/04-nextcloud.md](doc/04-nextcloud.md)            | NextCloud Docker stack, apps, Collabora config     |
+| [doc/05-troubleshooting.md](doc/05-troubleshooting.md)| Common issues and fixes for all components         |
