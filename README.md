@@ -211,7 +211,6 @@ File Structure
 ├── ssl/                   # Auto-generated SSL certs (gitignored)
 ├── nextcloud/             # NextCloud Docker stack
 │   ├── docker-compose.yml # NextCloud, MariaDB, Collabora, Redis, Nginx
-│   ├── nextcloud-setup.sh # Creates volume dirs and starts stack
 │   └── README.md          # NextCloud setup documentation
 ├── doc/                   # Detailed documentation
 │   ├── 01-prerequisites.md

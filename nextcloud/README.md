@@ -32,12 +32,6 @@ sudo usermod -aG docker him
 
 ```bash
 cd /opt/him-edu/nextcloud
-chmod +x nextcloud-setup.sh
-sudo ./nextcloud-setup.sh
-```
-
-Or manually:
-```bash
 mkdir -p html custom_apps config data nextclouddb redis npm-data letsencrypt
 ```
 

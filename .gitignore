@@ -1,5 +1,6 @@
 # Ignore runtime-generated files
 hostapd.conf
+dnsmasq.conf
 server.log
 __pycache__/
 *.pyc
