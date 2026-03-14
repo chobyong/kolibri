@@ -5,8 +5,8 @@ Wants=him-ap.service him-firewall.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/him/walled_garden/server.py
-WorkingDirectory=/home/him/walled_garden
+ExecStart=/usr/bin/python3 /opt/him-edu/server.py
+WorkingDirectory=/opt/him-edu
 Restart=always
 RestartSec=3
 User=root

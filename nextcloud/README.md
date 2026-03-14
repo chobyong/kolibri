@@ -21,7 +21,7 @@ Setup on a New Host
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- Walled garden repo cloned to `/home/him/walled_garden`
+- Walled garden repo cloned to `/opt/him-edu`
 
 ```bash
 sudo apt-get install -y docker.io docker-compose-plugin
@@ -31,7 +31,7 @@ sudo usermod -aG docker him
 ### 1. Create volume directories
 
 ```bash
-cd /home/him/walled_garden/nextcloud
+cd /opt/him-edu/nextcloud
 chmod +x nextcloud-setup.sh
 sudo ./nextcloud-setup.sh
 ```
@@ -44,7 +44,7 @@ mkdir -p html custom_apps config data nextclouddb redis npm-data letsencrypt
 ### 2. Start the stack
 
 ```bash
-cd /home/him/walled_garden/nextcloud
+cd /opt/him-edu/nextcloud
 sudo docker compose up -d
 ```
 
@@ -77,9 +77,9 @@ The container needs internet access to download apps. If the walled garden
 iptables are active, temporarily clear them first:
 
 ```bash
-sudo /home/him/walled_garden/iptables_rules.sh clear
+sudo /opt/him-edu/iptables_rules.sh clear
 sudo systemctl restart docker
-cd /home/him/walled_garden/nextcloud && sudo docker compose up -d
+cd /opt/him-edu/nextcloud && sudo docker compose up -d
 ```
 
 Then download and install each app manually:
@@ -118,7 +118,7 @@ sudo docker exec -u www-data nextcloud php occ config:app:set richdocuments wopi
 ### 7. Re-enable walled garden
 
 ```bash
-sudo /home/him/walled_garden/start_ap.sh
+sudo /opt/him-edu/start_ap.sh
 ```
 
 ---

@@ -17,14 +17,14 @@ ExecStartPre=/bin/bash -c '\
   ip addr add 10.42.0.1/24 dev "$IFACE"; \
   ip link set "$IFACE" up; \
   sleep 1; \
-  IFACE=$IFACE envsubst < /home/him/walled_garden/hostapd.conf.tmpl > /run/hostapd-him.conf || \
-  sed "s/^interface=.*/interface=$IFACE/" /home/him/walled_garden/hostapd.conf > /run/hostapd-him.conf'
+  IFACE=$IFACE envsubst < /opt/him-edu/hostapd.conf.tmpl > /run/hostapd-him.conf || \
+  sed "s/^interface=.*/interface=$IFACE/" /opt/him-edu/hostapd.conf > /run/hostapd-him.conf'
 
 ExecStart=/usr/sbin/hostapd -B -P /run/hostapd.pid /run/hostapd-him.conf
 
 ExecStartPost=/bin/bash -c '\
   IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1); \
-  sed "s/^interface=.*/interface=$IFACE/" /home/him/walled_garden/dnsmasq.conf > /run/him-dnsmasq.conf; \
+  sed "s/^interface=.*/interface=$IFACE/" /opt/him-edu/dnsmasq.conf > /run/him-dnsmasq.conf; \
   dnsmasq --conf-file=/run/him-dnsmasq.conf --pid-file=/run/him-dnsmasq.pid'
 
 ExecStop=/bin/bash -c '\

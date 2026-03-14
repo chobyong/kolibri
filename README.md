@@ -27,9 +27,17 @@ sudo access.
 ### Step 2 — Clone and Run
 
 ```bash
-sudo apt-get update && sudo apt-get install -y git
-git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
-cd /home/him/walled_garden
+sudo apt-get update && sudo apt-get install -y git curl
+curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
+chmod +x /tmp/setup-him-edu.sh
+sudo /tmp/setup-him-edu.sh
+```
+
+Or manually:
+```bash
+sudo rm -rf /opt/him-edu
+sudo git clone https://github.com/chobyong/kolibri.git /opt/him-edu
+cd /opt/him-edu
 chmod +x install.sh
 sudo ./install.sh
 ```
@@ -191,7 +199,8 @@ File Structure
 --------------
 
 ```
-/home/him/walled_garden/
+/opt/him-edu/
+├── setup-him-edu.sh       # Bootstrap script (clones repo + runs install)
 ├── install.sh             # Full installation script (run this first)
 ├── start_ap.sh            # Start the walled garden
 ├── stop_ap.sh             # Stop the walled garden
@@ -242,18 +251,18 @@ Cloning to a New Machine
 
 ```bash
 # On the new machine:
-sudo apt-get update && sudo apt-get install -y git
-git clone https://github.com/chobyong/kolibri.git /home/him/walled_garden
-cd /home/him/walled_garden
-chmod +x install.sh
-sudo ./install.sh
-sudo ./start_ap.sh
-sudo systemctl enable walled-garden
+sudo apt-get update && sudo apt-get install -y git curl
+curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
+chmod +x /tmp/setup-him-edu.sh
+sudo /tmp/setup-him-edu.sh
 ```
+
+This single command clones the repo to `/opt/him-edu`, runs the full installer,
+starts the walled garden, and enables it on boot.
 
 For Kolibri content, either:
 - Run the Kolibri setup wizard and import channels over the network, or
-- Copy `/home/him/.kolibri/` from the old machine to the new one.
+- Copy `~/.kolibri/` from the old machine to the new one.
 
 ---
 

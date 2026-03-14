@@ -6,8 +6,8 @@ Before=him-webserver.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/bash /home/him/walled_garden/iptables_rules.sh apply
-ExecStop=/bin/bash /home/him/walled_garden/iptables_rules.sh clear
+ExecStart=/bin/bash /opt/him-edu/iptables_rules.sh apply
+ExecStop=/bin/bash /opt/him-edu/iptables_rules.sh clear
 
 [Install]
 WantedBy=multi-user.target

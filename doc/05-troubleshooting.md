@@ -201,5 +201,6 @@ To completely reset and reinstall:
 sudo ./stop_ap.sh
 cd nextcloud && docker compose down -v && cd ..
 sudo rm -rf nextcloud/{html,custom_apps,config,data,nextclouddb,redis,npm-data,letsencrypt}
+cd /opt/him-edu
 sudo ./install.sh
 ```

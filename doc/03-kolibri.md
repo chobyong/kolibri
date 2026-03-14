@@ -76,7 +76,7 @@ from a USB drive.
 ## Configuration
 
 Kolibri's configuration is stored in:
-- `/home/him/.kolibri/` (user data and settings)
+- `~/.kolibri/` (user data and settings)
 - Content database and files are in subdirectories of `.kolibri/`
 
 ### Changing the Port
