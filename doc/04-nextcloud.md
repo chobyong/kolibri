@@ -7,7 +7,7 @@ editing (via Collabora Online). It runs as a Docker Compose stack with five
 containers.
 
 - **URL**: http://10.42.0.1:8081/
-- **Admin**: `admin` / `admin123`
+- **Admin**: `him` / `ABCD_1234`
 
 ## Architecture
 

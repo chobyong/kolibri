@@ -274,9 +274,9 @@ install_nextcloud() {
       --database-name "nextcloud" \
       --database-user "nextcloud" \
       --database-pass "dbpassword" \
-      --admin-user "admin" \
-      --admin-pass "admin123"
-    ok "NextCloud installed (admin/admin123)"
+      --admin-user "him" \
+      --admin-pass "ABCD_1234"
+    ok "NextCloud installed (him/ABCD_1234)"
   fi
 
   # Configure trusted domains and settings
@@ -538,7 +538,7 @@ main() {
   echo "  Services (all running):"
   echo "    Landing Page:  http://${AP_IP}/"
   echo "    Kolibri:       http://${AP_IP}:8080/"
-  echo "    NextCloud:     http://${AP_IP}:8081/  (admin / admin123)"
+  echo "    NextCloud:     http://${AP_IP}:8081/  (him / ABCD_1234)"
   echo "    Collabora:     http://${AP_IP}:9980/"
   echo "    Nginx Proxy:   http://${AP_IP}:81/"
   echo ""

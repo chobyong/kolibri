@@ -57,8 +57,8 @@ sudo docker exec -u www-data nextcloud php occ maintenance:install \
   --database-name "nextcloud" \
   --database-user "nextcloud" \
   --database-pass "dbpassword" \
-  --admin-user "admin" \
-  --admin-pass "admin123"
+  --admin-user "him" \
+  --admin-pass "ABCD_1234"
 ```
 
 ### 4. Configure trusted domains
@@ -128,7 +128,7 @@ Default Credentials
 
 | Service | Username | Password |
 |---------|----------|----------|
-| NextCloud | admin | admin123 |
+| NextCloud | him | ABCD_1234 |
 | Collabora | nextcloud | password |
 | Nginx Proxy Manager | admin@example.com | changeme |
 
