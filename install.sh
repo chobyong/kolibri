@@ -21,7 +21,8 @@ PASSPHRASE="1234567890"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 NEXTCLOUD_DIR="${SCRIPT_DIR}/nextcloud"
 LOG_FILE="${SCRIPT_DIR}/install.log"
-TARGET_USER="${SUDO_USER:-him}"\nMACHINE_HOSTNAME="$(hostname)"
+TARGET_USER="${SUDO_USER:-him}"
+MACHINE_HOSTNAME="$(hostname)"
 
 # NextCloud app versions (update these when upgrading)
 CALENDAR_VER="6.2.1"
