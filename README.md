@@ -206,7 +206,6 @@ File Structure
 ├── stop_ap.sh             # Stop the walled garden
 ├── iptables_rules.sh      # Firewall rules (called by start/stop)
 ├── server.py              # Captive portal web server
-├── setup_server.sh        # Legacy one-time setup (use install.sh instead)
 ├── www/
 │   └── index.html         # Landing page shown to clients
 ├── ssl/                   # Auto-generated SSL certs (gitignored)
