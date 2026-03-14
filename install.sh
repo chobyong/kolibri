@@ -243,8 +243,24 @@ install_nextcloud() {
   echo "  Waiting for NextCloud to be ready..."
   wait_for_container nextcloud 90
 
+  # Wait for MariaDB to accept connections
+  echo "  Waiting for MariaDB to be ready..."
+  local db_tries=0
+  while [ $db_tries -lt 60 ]; do
+    if docker exec nextcloud-db mariadb -u nextcloud -pdbpassword -e "SELECT 1" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 2
+    db_tries=$((db_tries + 1))
+  done
+  if [ $db_tries -ge 60 ]; then
+    err "MariaDB did not become ready within 120s"
+    return 1
+  fi
+  ok "MariaDB is ready"
+
   # Check if already installed
-  sleep 10
+  sleep 5
   local installed
   installed=$(docker exec -u www-data nextcloud php occ status --output=json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('installed',False))" 2>/dev/null || echo "False")
 
