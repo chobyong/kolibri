@@ -21,7 +21,7 @@ PASSPHRASE="1234567890"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 NEXTCLOUD_DIR="${SCRIPT_DIR}/nextcloud"
 LOG_FILE="${SCRIPT_DIR}/install.log"
-TARGET_USER="${SUDO_USER:-him}"
+TARGET_USER="${SUDO_USER:-him}"\nMACHINE_HOSTNAME="$(hostname)"
 
 # NextCloud app versions (update these when upgrading)
 CALENDAR_VER="6.2.1"
@@ -55,6 +55,34 @@ wait_for_container() {
   done
   err "Container $name did not start within ${max}s"
   return 1
+}
+
+# =============================================================================
+#  PHASE 0 — Hostname
+# =============================================================================
+
+setup_hostname() {
+  log "Phase 0: Set Hostname"
+
+  local current_hostname
+  current_hostname=$(hostname)
+  echo "  Current hostname: $current_hostname"
+
+  local new_hostname
+  read -rp "  Enter new hostname (press Enter to keep '$current_hostname'): " new_hostname
+
+  if [ -z "$new_hostname" ]; then
+    ok "Keeping hostname: $current_hostname"
+    MACHINE_HOSTNAME="$current_hostname"
+  else
+    hostnamectl set-hostname "$new_hostname"
+    sed -i "s/127\.0\.1\.1.*/127.0.1.1\t$new_hostname/" /etc/hosts
+    if ! grep -q "127.0.1.1" /etc/hosts; then
+      echo -e "127.0.1.1\t$new_hostname" >> /etc/hosts
+    fi
+    ok "Hostname set to: $new_hostname"
+    MACHINE_HOSTNAME="$new_hostname"
+  fi
 }
 
 # =============================================================================
@@ -402,6 +430,52 @@ verify_installation() {
   else
     warn "No wireless interface detected"
   fi
+
+  # Tailscale
+  if command_exists tailscale && tailscale status >/dev/null 2>&1; then
+    ok "Tailscale connected ($(tailscale ip -4 2>/dev/null || echo 'unknown IP'))"
+  else
+    warn "Tailscale not connected"
+  fi
+
+  # Hostname
+  ok "Hostname: $(hostname)"
+}
+
+# =============================================================================
+#  PHASE 7.5 — Tailscale
+# =============================================================================
+
+install_tailscale() {
+  log "Phase 8: Tailscale"
+
+  if command_exists tailscale; then
+    ok "Tailscale already installed ($(tailscale version 2>/dev/null | head -1))"
+  else
+    echo "  Installing Tailscale..."
+    curl -fsSL https://tailscale.com/install.sh | sh
+    ok "Tailscale installed"
+  fi
+
+  systemctl enable --now tailscaled 2>/dev/null || true
+  ok "tailscaled service enabled"
+
+  # Check if already authenticated
+  local ts_status
+  ts_status=$(tailscale status 2>&1 || true)
+  if echo "$ts_status" | grep -qiE "stopped|logged out|not logged in|NeedsLogin"; then
+    echo ""
+    echo "  Activating Tailscale with SSH enabled..."
+    echo "  A login URL will appear — open it in a browser to authenticate."
+    echo ""
+    tailscale up --ssh --hostname="${MACHINE_HOSTNAME}" --accept-routes
+    ok "Tailscale activated (hostname: ${MACHINE_HOSTNAME}, SSH enabled)"
+  else
+    # Already connected, update settings
+    tailscale set --ssh --hostname="${MACHINE_HOSTNAME}" 2>/dev/null || \
+      tailscale up --ssh --hostname="${MACHINE_HOSTNAME}" --accept-routes 2>/dev/null || true
+    ok "Tailscale already connected — updated hostname to ${MACHINE_HOSTNAME} with SSH"
+  fi
 }
 
 # =============================================================================
@@ -421,12 +495,14 @@ main() {
   echo "  Dir:    $SCRIPT_DIR"
   echo "============================================================"
 
+  setup_hostname
   install_prerequisites
   install_docker
   install_kolibri
   install_nextcloud
   install_nextcloud_apps
   setup_walled_garden
+  install_tailscale
   verify_installation
 
   echo ""
@@ -448,6 +524,8 @@ main() {
   echo "    Nginx Proxy:   http://${AP_IP}:81/"
   echo ""
   echo "  Wi-Fi:  SSID=$SSID  Password=$PASSPHRASE"
+  echo ""
+  echo "  Tailscale SSH: enabled (hostname: ${MACHINE_HOSTNAME})"
   echo ""
   echo "  NOTE: Log out and back in for docker group to take effect."
   echo "============================================================"
