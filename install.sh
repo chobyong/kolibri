@@ -522,18 +522,20 @@ main() {
   install_tailscale
   verify_installation
 
+  # Start the walled garden and enable on boot
+  log "Starting walled garden and enabling on boot..."
+  chmod +x "$SCRIPT_DIR/start_ap.sh"
+  "$SCRIPT_DIR/start_ap.sh"
+  ok "Walled garden started"
+  systemctl enable walled-garden 2>/dev/null || true
+  ok "Walled garden enabled on boot"
+
   echo ""
   echo "============================================================"
   echo "     Installation Complete!"
   echo "============================================================"
   echo ""
-  echo "  To start the walled garden:"
-  echo "    sudo ./start_ap.sh"
-  echo ""
-  echo "  To enable on boot:"
-  echo "    sudo systemctl enable walled-garden"
-  echo ""
-  echo "  Services:"
+  echo "  Services (all running):"
   echo "    Landing Page:  http://${AP_IP}/"
   echo "    Kolibri:       http://${AP_IP}:8080/"
   echo "    NextCloud:     http://${AP_IP}:8081/  (admin / admin123)"
