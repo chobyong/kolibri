@@ -5,7 +5,8 @@ set -euo pipefail
 #  Kolibri Channel Importer — HIM Education
 # =============================================================================
 #  Downloads educational content channels into Kolibri.
-#  Requires internet access. Run BEFORE starting the walled garden.
+#  Works while the walled garden is running (uses Ethernet for internet).
+#  Can also be run before starting the walled garden.
 #
 #  Usage:
 #    sudo ./import-kolibri-channels.sh              # Import all channels

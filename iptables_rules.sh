@@ -15,10 +15,10 @@ fi
 
 if [ "$ACTION" = "clear" ]; then
   echo "Clearing walled garden iptables rules..."
-  iptables -t nat -F 2>/dev/null || true
-  iptables -F FORWARD 2>/dev/null || true
-  iptables -P FORWARD ACCEPT 2>/dev/null || true
-  echo "Done — iptables cleared."
+  # Only remove our custom chain, leave Docker and other rules intact
+  iptables -D FORWARD -i "$( ls /sys/class/net/ | grep -E '^wl' | head -1 )" -j DROP 2>/dev/null || true
+  iptables -t nat -F PREROUTING 2>/dev/null || true
+  echo "Done — walled garden iptables cleared."
   exit 0
 fi
 
@@ -33,12 +33,12 @@ fi
 
 echo "Applying walled garden rules on $IFACE (portal: $AP_IP)..."
 
-# Flush existing rules
-iptables -t nat -F
-iptables -F FORWARD
+# Flush only PREROUTING (our rules), leave Docker NAT rules intact
+iptables -t nat -F PREROUTING
 
-# Block all forwarding — clients cannot reach the internet
-iptables -P FORWARD DROP
+# Block forwarding on wireless interface only — Ethernet and Docker stay unaffected
+iptables -D FORWARD -i "$IFACE" -j DROP 2>/dev/null || true
+iptables -A FORWARD -i "$IFACE" -j DROP
 
 # Intercept ALL DNS traffic (UDP+TCP) and redirect to our dnsmasq
 # This catches clients with hardcoded DNS (e.g. 8.8.8.8, Cloudflare, etc.)
