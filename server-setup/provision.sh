@@ -17,6 +17,7 @@ INSTALL_DIR="/opt/him-edu"
 NEXTCLOUD_DIR="${INSTALL_DIR}/nextcloud"
 LOG_FILE="/var/log/him-provision.log"
 KOLIBRI_URL="https://learningequality.org/r/kolibri-deb-latest"
+IFACE_CONF="/opt/him-edu/wifi-iface.conf"   # persists detected interface
 
 # Redirect output to log while still showing on console
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -33,6 +34,65 @@ if [ "$(id -u)" -ne 0 ]; then
   err "Must run as root: sudo bash provision.sh"
   exit 1
 fi
+
+# ---------------------------------------------------------------------------
+#  detect_wifi_iface — universal wireless interface detection
+#
+#  Priority order:
+#    1. Previously saved value in $IFACE_CONF (consistent across re-runs)
+#    2. iw dev  (works with any naming convention including wlx<mac> USB adapters)
+#    3. /sys/class/net scan  (fallback: wlan*, wlp*, wlx*, wls*)
+#
+#  Also validates that the chosen interface supports AP mode.
+# ---------------------------------------------------------------------------
+detect_wifi_iface() {
+  local iface=""
+
+  # 1. Use saved value if present and interface still exists
+  if [ -f "$IFACE_CONF" ]; then
+    local saved
+    saved=$(cat "$IFACE_CONF")
+    if [ -n "$saved" ] && [ -d "/sys/class/net/$saved" ]; then
+      echo "$saved"
+      return 0
+    fi
+  fi
+
+  # 2. iw dev — picks up all naming conventions (wlan0, wlp2s0, wlx<mac>, etc.)
+  if cmd_exists iw; then
+    iface=$(iw dev 2>/dev/null | awk '/Interface/{print $2}' | head -1)
+  fi
+
+  # 3. /sys/class/net scan — catches any interface whose phy80211 link exists
+  if [ -z "$iface" ]; then
+    for dev in /sys/class/net/*/phy80211; do
+      [ -e "$dev" ] && iface=$(basename "$(dirname "$dev")") && break
+    done
+  fi
+
+  # 4. Last resort: name-pattern match (wlan*, wlp*, wlx*, wls*, wlo*)
+  if [ -z "$iface" ]; then
+    iface=$(ls /sys/class/net/ 2>/dev/null | grep -E '^wl' | head -1)
+  fi
+
+  if [ -z "$iface" ]; then
+    return 1
+  fi
+
+  # Validate AP mode support
+  if cmd_exists iw; then
+    if ! iw phy "$(cat /sys/class/net/${iface}/phy80211/name 2>/dev/null)" \
+        info 2>/dev/null | grep -q "AP"; then
+      warn "Interface $iface may not support AP mode — hotspot might fail."
+      warn "Check: iw phy \$(cat /sys/class/net/${iface}/phy80211/name) info | grep -A10 'Supported interface modes'"
+    fi
+  fi
+
+  # Persist for all subsequent scripts and service files
+  mkdir -p "$(dirname "$IFACE_CONF")"
+  echo "$iface" > "$IFACE_CONF"
+  echo "$iface"
+}
 
 # =============================================================================
 #  PHASE 0 — Hostname
@@ -209,6 +269,11 @@ write_script_if_missing() {
   chmod +x "$path"
 }
 
+# --- Detect and persist wireless interface -----------------------------------
+log "Detecting wireless interface..."
+IFACE=$(detect_wifi_iface) || { err "No wireless interface found — hotspot will not work."; IFACE=""; }
+[ -n "$IFACE" ] && ok "Wireless interface: $IFACE (saved to $IFACE_CONF)"
+
 # start_ap.sh
 write_script_if_missing "$INSTALL_DIR/start_ap.sh" '#!/usr/bin/env bash
 set -euo pipefail
@@ -216,11 +281,34 @@ SSID="him-edu"
 PASSPHRASE="1234567890"
 AP_IP="10.42.0.1"
 DHCP_RANGE="10.42.0.10,10.42.0.254,255.255.255.0,12h"
+COUNTRY="US"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+IFACE_CONF="${SCRIPT_DIR}/wifi-iface.conf"
 [ "$(id -u)" -ne 0 ] && { echo "Run as root" >&2; exit 2; }
-IFACE=$(iw dev 2>/dev/null | awk "/Interface/{print \$2}" | head -1)
-[ -z "$IFACE" ] && IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1)
+
+# Universal interface detection — tries saved value first, then all methods
+detect_iface() {
+  # 1. Saved value
+  if [ -f "$IFACE_CONF" ]; then
+    local s; s=$(cat "$IFACE_CONF")
+    [ -n "$s" ] && [ -d "/sys/class/net/$s" ] && { echo "$s"; return 0; }
+  fi
+  # 2. iw dev (works for wlan0, wlp*, wlx<mac>, etc.)
+  local i
+  i=$(iw dev 2>/dev/null | awk "/Interface/{print \$2}" | head -1)
+  [ -n "$i" ] && { echo "$i"; return 0; }
+  # 3. phy80211 symlink — catches any wireless NIC regardless of name
+  for dev in /sys/class/net/*/phy80211; do
+    [ -e "$dev" ] && { basename "$(dirname "$dev")"; return 0; }
+  done
+  # 4. Name-pattern fallback
+  ls /sys/class/net/ 2>/dev/null | grep -E "^wl" | head -1
+}
+
+IFACE=$(detect_iface)
 [ -z "$IFACE" ] && { echo "No wireless interface found" >&2; exit 1; }
+echo "Using wireless interface: $IFACE"
+
 pkill hostapd 2>/dev/null || true
 pkill dnsmasq 2>/dev/null || true
 pkill -f "python3 ${SCRIPT_DIR}/server.py" 2>/dev/null || true
@@ -244,6 +332,8 @@ wpa=2
 wpa_passphrase=${PASSPHRASE}
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
+country_code=${COUNTRY}
+ieee80211d=1
 EOF
 cat > "${SCRIPT_DIR}/dnsmasq.conf" <<EOF
 interface=${IFACE}
@@ -269,9 +359,20 @@ echo "HIM Education Walled Garden ACTIVE — SSID: $SSID / Portal: http://${AP_I
 write_script_if_missing "$INSTALL_DIR/stop_ap.sh" '#!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+IFACE_CONF="${SCRIPT_DIR}/wifi-iface.conf"
 [ "$(id -u)" -ne 0 ] && { echo "Run as root" >&2; exit 2; }
-IFACE=$(iw dev 2>/dev/null | awk "/Interface/{print \$2}" | head -1)
-[ -z "$IFACE" ] && IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1)
+
+detect_iface() {
+  [ -f "$IFACE_CONF" ] && local s; s=$(cat "$IFACE_CONF" 2>/dev/null)
+  [ -n "$s" ] && [ -d "/sys/class/net/$s" ] && { echo "$s"; return 0; }
+  iw dev 2>/dev/null | awk "/Interface/{print \$2}" | head -1 && return 0
+  for dev in /sys/class/net/*/phy80211; do
+    [ -e "$dev" ] && { basename "$(dirname "$dev")"; return 0; }
+  done
+  ls /sys/class/net/ 2>/dev/null | grep -E "^wl" | head -1
+}
+
+IFACE=$(detect_iface)
 pkill -f "python3 ${SCRIPT_DIR}/server.py" || true
 pkill hostapd || true
 [ -f /run/him-dnsmasq.pid ] && kill "$(cat /run/him-dnsmasq.pid)" 2>/dev/null || pkill dnsmasq 2>/dev/null || true
@@ -286,6 +387,7 @@ set -euo pipefail
 ACTION="${1:-apply}"
 IFACE="${2:-}"
 AP_IP="${3:-10.42.0.1}"
+IFACE_CONF="/opt/him-edu/wifi-iface.conf"
 [ "$(id -u)" -ne 0 ] && { echo "Run as root" >&2; exit 2; }
 if [ "$ACTION" = "clear" ]; then
   iptables -t nat -F 2>/dev/null || true
@@ -294,7 +396,19 @@ if [ "$ACTION" = "clear" ]; then
   echo "iptables cleared."
   exit 0
 fi
-[ -z "$IFACE" ] && IFACE=$(ls /sys/class/net/ | grep -E "^wl" | head -1)
+# Resolve interface: arg > saved file > auto-detect
+if [ -z "$IFACE" ]; then
+  [ -f "$IFACE_CONF" ] && IFACE=$(cat "$IFACE_CONF")
+fi
+if [ -z "$IFACE" ]; then
+  IFACE=$(iw dev 2>/dev/null | awk "/Interface/{print \$2}" | head -1)
+fi
+if [ -z "$IFACE" ]; then
+  for dev in /sys/class/net/*/phy80211; do
+    [ -e "$dev" ] && IFACE=$(basename "$(dirname "$dev")") && break
+  done
+fi
+[ -z "$IFACE" ] && IFACE=$(ls /sys/class/net/ 2>/dev/null | grep -E "^wl" | head -1)
 [ -z "$IFACE" ] && { echo "No wireless interface" >&2; exit 1; }
 iptables -t nat -F
 iptables -F FORWARD
@@ -605,7 +719,7 @@ ok "Collabora WOPI configured"
 # =============================================================================
 log "Phase 8: Systemd Services"
 
-# him-ap.service
+# him-ap.service — uses start_ap.sh which has full universal detection built in
 cat > /etc/systemd/system/him-ap.service <<EOF
 [Unit]
 Description=HIM Education Wi-Fi Access Point
@@ -615,10 +729,10 @@ Before=him-firewall.service him-webserver.service
 [Service]
 Type=forking
 PIDFile=/run/hostapd.pid
-ExecStartPre=/bin/bash -c 'IFACE=\$(ls /sys/class/net/ | grep -E "^wl" | head -1); nmcli device set "\$IFACE" managed no 2>/dev/null || true; sleep 1; ip link set "\$IFACE" down 2>/dev/null; ip addr flush dev "\$IFACE" 2>/dev/null; ip addr add ${AP_IP}/24 dev "\$IFACE"; ip link set "\$IFACE" up; sleep 1; sed "s/^interface=.*/interface=\$IFACE/" ${INSTALL_DIR}/hostapd.conf > /run/hostapd-him.conf'
-ExecStart=/usr/sbin/hostapd -B -P /run/hostapd.pid /run/hostapd-him.conf
-ExecStartPost=/bin/bash -c 'IFACE=\$(ls /sys/class/net/ | grep -E "^wl" | head -1); sed "s/^interface=.*/interface=\$IFACE/" ${INSTALL_DIR}/dnsmasq.conf > /run/him-dnsmasq.conf; dnsmasq --conf-file=/run/him-dnsmasq.conf --pid-file=/run/him-dnsmasq.pid'
-ExecStop=/bin/bash -c '[ -f /run/him-dnsmasq.pid ] && kill \$(cat /run/him-dnsmasq.pid) 2>/dev/null; rm -f /run/him-dnsmasq.pid /run/him-dnsmasq.conf; kill \$(cat /run/hostapd.pid 2>/dev/null) 2>/dev/null; rm -f /run/hostapd.pid /run/hostapd-him.conf; IFACE=\$(ls /sys/class/net/ | grep -E "^wl" | head -1); ip addr flush dev "\$IFACE" 2>/dev/null; nmcli device set "\$IFACE" managed yes 2>/dev/null || true'
+# Delegate all interface detection to start_ap.sh (universal, reads saved iface)
+ExecStart=/bin/bash ${INSTALL_DIR}/start_ap.sh
+ExecStop=/bin/bash ${INSTALL_DIR}/stop_ap.sh
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
