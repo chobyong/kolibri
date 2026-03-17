@@ -1,0 +1,99 @@
+version: '3'
+
+# HIM Education — NextCloud Stack
+# Deploy: cd /opt/him-edu/nextcloud && docker compose up -d
+# Ports exposed on AP interface (10.42.0.1):
+#   8081 → NextCloud
+#   9980 → Collabora (NextCloud Office)
+#   81   → Nginx Proxy Manager admin UI
+
+services:
+
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud
+    restart: unless-stopped
+    networks:
+      - cloud
+    depends_on:
+      - nextclouddb
+      - redis
+    ports:
+      - "8081:80"
+    volumes:
+      - ./html:/var/www/html
+      - ./custom_apps:/var/www/html/custom_apps
+      - ./config:/var/www/html/config
+      - ./data:/var/www/html/data
+    environment:
+      - TZ=America/Los_Angeles
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=dbpassword
+      - MYSQL_HOST=nextclouddb
+      - REDIS_HOST=redis
+
+  nextclouddb:
+    image: mariadb
+    container_name: nextcloud-db
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    networks:
+      - cloud
+    volumes:
+      - ./nextclouddb:/var/lib/mysql
+    environment:
+      - TZ=America/Los_Angeles
+      - MYSQL_RANDOM_ROOT_PASSWORD=true
+      - MYSQL_PASSWORD=dbpassword
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+
+  collabora:
+    image: collabora/code
+    container_name: collabora
+    restart: unless-stopped
+    cap_add:
+      - MKNOD
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    networks:
+      - cloud
+    environment:
+      - TZ=America/Los_Angeles
+      - password=password
+      - username=nextcloud
+      - domain=10\\.42\\.0\\.1|nextcloud
+      - server_name=10.42.0.1:9980
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=false
+    ports:
+      - "9980:9980"
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - cloud
+    volumes:
+      - ./redis:/data
+
+  nginx-proxy:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy
+    restart: unless-stopped
+    environment:
+      - TZ=America/Los_Angeles
+    ports:
+      - "81:81"
+    volumes:
+      - ./npm-data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - cloud
+
+networks:
+  cloud:
+    name: cloud
+    driver: bridge
