@@ -132,6 +132,11 @@ done
 systemctl disable --now hostapd 2>/dev/null || true
 systemctl disable --now dnsmasq 2>/dev/null || true
 
+# Enable IP forwarding — required for iptables NAT/DNAT (walled garden)
+echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-him-forward.conf
+sysctl -w net.ipv4.ip_forward=1
+ok "IP forwarding enabled (persistent)"
+
 # Disable suspend/hibernate on a server
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null || true
 ok "Sleep/suspend masked"
@@ -807,6 +812,87 @@ else
   ok "Walled garden started"
 fi
 
+# Persist iptables rules so they survive reboot
+log "Persisting iptables rules..."
+if cmd_exists netfilter-persistent; then
+  netfilter-persistent save
+  ok "iptables rules saved (netfilter-persistent)"
+elif cmd_exists iptables-save; then
+  mkdir -p /etc/iptables
+  iptables-save  > /etc/iptables/rules.v4
+  ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
+  # Restore on boot via rc.local if iptables-persistent not available
+  if ! cmd_exists netfilter-persistent; then
+    cat > /etc/rc.local <<'RCEOF'
+#!/bin/bash
+iptables-restore < /etc/iptables/rules.v4
+exit 0
+RCEOF
+    chmod +x /etc/rc.local
+    systemctl enable rc-local 2>/dev/null || true
+  fi
+  ok "iptables rules saved to /etc/iptables/rules.v4"
+fi
+
+# =============================================================================
+#  PHASE 10 — Kolibri Channels (English + Español)
+# =============================================================================
+log "Phase 10: Kolibri Channels"
+
+# Channel IDs from Kolibri Content Library (learningequality.org)
+# Khan Academy (English) — full curriculum K-12
+KHAN_EN="9b419c4e26ad5b5494d7f1f4f85e26f7"
+# Khan Academy en Español — currículo completo K-12
+KHAN_ES="a0b1e3f3e6f25ad58e27d1f78498deab"
+
+# Kolibri must be running to import content
+if ! systemctl is-active --quiet kolibri 2>/dev/null; then
+  systemctl start kolibri 2>/dev/null || true
+  sleep 5
+fi
+
+# Kolibri runs as the 'kolibri' user — detect its home/data dir
+KOLIBRI_HOME=$(getent passwd kolibri 2>/dev/null | cut -d: -f6 || echo "/var/kolibri")
+export KOLIBRI_HOME
+
+import_kolibri_channel() {
+  local name="$1" cid="$2"
+  log "Importing Kolibri channel: $name ($cid)"
+
+  # Check if channel already imported
+  if sudo -u kolibri kolibri manage listchannels 2>/dev/null | grep -qi "$cid"; then
+    ok "$name already imported"
+    return 0
+  fi
+
+  # Import channel metadata (fast — just the catalog/tree)
+  if sudo -u kolibri kolibri manage importchannel network "$cid" 2>&1; then
+    ok "$name channel metadata imported"
+  else
+    warn "$name channel metadata import failed — no internet or channel ID changed"
+    warn "Import manually later: sudo -u kolibri kolibri manage importchannel network $cid"
+    return 1
+  fi
+
+  # Import all content (can be large — GBs; runs in background)
+  log "Downloading $name content (this runs in background — may take hours)..."
+  nohup sudo -u kolibri kolibri manage importcontent network "$cid" \
+    >> "$LOG_FILE" 2>&1 &
+  ok "$name content download started (PID $!) — check $LOG_FILE for progress"
+}
+
+if curl -fsS --max-time 10 https://kolibri-studio.learningequality.org >/dev/null 2>&1; then
+  import_kolibri_channel "Khan Academy (English)"  "$KHAN_EN"
+  import_kolibri_channel "Khan Academy (Español)"  "$KHAN_ES"
+else
+  warn "No internet access — Kolibri channels cannot be downloaded now."
+  warn "Once online, run:"
+  warn "  sudo -u kolibri kolibri manage importchannel network $KHAN_EN"
+  warn "  sudo -u kolibri kolibri manage importcontent  network $KHAN_EN"
+  warn "  sudo -u kolibri kolibri manage importchannel network $KHAN_ES"
+  warn "  sudo -u kolibri kolibri manage importcontent  network $KHAN_ES"
+fi
+
 # =============================================================================
 #  DONE
 # =============================================================================
@@ -814,13 +900,14 @@ echo ""
 echo "========================================================="
 echo "  HIM Education Server provisioning COMPLETE"
 echo "========================================================="
-echo "  Hostname:   $HOSTNAME_TARGET"
+echo "  Hostname:   $(hostname)"
 echo "  Wi-Fi SSID: $SSID  |  Password: $PASSPHRASE"
 echo "  Portal:     http://${AP_IP}/"
 echo "  Kolibri:    http://${AP_IP}:8080/"
 echo "  NextCloud:  http://${AP_IP}:8081/"
 echo "  NC Admin:   admin / admin123"
 echo "  Tailscale:  run 'tailscale up' to authenticate"
+echo "  Channels:   Khan Academy EN + ES (downloading in background)"
 echo "  Log:        $LOG_FILE"
 echo "========================================================="
 echo "=== HIM Provision finished: $(date) ==="
