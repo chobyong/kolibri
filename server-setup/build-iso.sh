@@ -96,7 +96,7 @@ ok "initrd repacked"
 log "Patching boot loader configuration..."
 
 # Common preseed kernel parameters
-PRESEED_PARAMS="auto=true priority=critical preseed/file=/preseed.cfg"
+PRESEED_PARAMS="auto=true priority=critical"
 
 # GRUB (EFI) — grub.cfg
 GRUBCFG=""
