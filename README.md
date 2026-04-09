@@ -24,7 +24,11 @@ Quick Start — Full Installation
 
 Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with
 sudo access.
-
+```bash
+su - #password to be ACBD_1234
+usermond -aG sudo him
+# log out and log back in to server
+```
 ### Step 2 — Clone and Run
 
 ```bash
