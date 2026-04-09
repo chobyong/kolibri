@@ -15,6 +15,7 @@ with links to **Kolibri** and **NextCloud** — no internet required.
 | NextCloud   | `http://10.42.0.1:8081`  |
 
 ---
+- username : him , password: ABCD_1234 for all application, admin console, etc.
 
 Quick Start — Full Installation
 --------------------------------
