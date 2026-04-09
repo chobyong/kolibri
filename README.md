@@ -24,7 +24,7 @@ Quick Start — Full Installation
 
 Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with
 sudo access.
-Debian or Ubuntu install will prompt for root and a user, root password to be ABCD_1234, him user password to be ABCD_1234
+Debian or Ubuntu install will prompt for `root` and a user name `him`, password to be ABCD_1234 for both
 
 ```bash
 su - #password to be ACBD_1234
