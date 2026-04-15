@@ -24,6 +24,8 @@ Quick Start — Full Installation
 
 - Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with sudo access.
 - Debian or Ubuntu install will prompt for `root` and a user name `him`, password to be ABCD_1234
+- initial OS install will prompt for host name is him-xxx , xxx is sequential numeric value that is unique per server
+- initial OS set up will prompt for service enable, you need to enable `ssh` but not web service
 
 ```bash
 su - #password to be ACBD_1234
@@ -31,6 +33,7 @@ usermond -aG sudo him
 # log out and log back in to server
 ```
 ### Step 2 — Clone and Run
+- run command from him user, NOT a root user for the rest of command.
 
 ```bash
 sudo apt-get update && sudo apt-get install -y git curl
