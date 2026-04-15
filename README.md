@@ -244,14 +244,15 @@ File Structure
 │   ├── nextclouddb/            # MariaDB data volume
 │   ├── npm-data/               # Nginx Proxy Manager data
 │   └── redis/                  # Redis data volume
-├── server-setup/               # Server provisioning tools
+├── server-setup/               # Tools for building new servers (not used in normal operation)
+│   ├── README.md               # What this folder is and how to use it
 │   ├── build-iso.sh            # Build custom Debian installer ISO
 │   ├── preseed.cfg             # Debian unattended install config
-│   ├── provision.sh            # Post-install provisioning script
-│   ├── docker-compose.yml      # Dev/build environment compose file
+│   ├── provision.sh            # First-boot provisioning script
+│   ├── docker-compose.yml      # Reference copy of NextCloud Docker stack
 │   ├── deployment-guide.md     # Step-by-step deployment guide
 │   ├── deployment-guide.pdf    # PDF version of deployment guide
-│   └── SETUP.md                # Server setup notes
+│   └── SETUP.md                # Reference server (HIM-010) system spec
 ├── doc/                        # Detailed documentation
 │   ├── 01-prerequisites.md
 │   ├── 02-walled-garden.md
@@ -316,3 +317,4 @@ Detailed documentation is available in the `doc/` folder:
 | [doc/03-kolibri.md](doc/03-kolibri.md)                | Kolibri installation, content import, management   |
 | [doc/04-nextcloud.md](doc/04-nextcloud.md)            | NextCloud Docker stack, apps, Collabora config     |
 | [doc/05-troubleshooting.md](doc/05-troubleshooting.md)| Common issues and fixes for all components         |
+| [server-setup/README.md](server-setup/README.md)      | How to build a new server using the ISO installer  |
