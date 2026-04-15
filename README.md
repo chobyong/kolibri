@@ -66,7 +66,7 @@ The `install.sh` script handles **everything** in one run:
 sudo import-kolibri-channels.sh english|spanish
 ```
 
-> **Note:** `setup.sh` runs this automatically. Only needed if you want to re-import or add a language manually.
+> **Note:** Channels are not imported automatically by `setup.sh`. Run this step manually after installation to load content into Kolibri.
 
 ### Step 4 — (Optional / Troubleshooting) Start the Walled Garden
 
