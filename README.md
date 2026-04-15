@@ -25,7 +25,11 @@ Quick Start — Full Installation
 - Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with sudo access.
 - Debian or Ubuntu install will prompt for `root` and a user name `him`, password to be ABCD_1234
 - initial OS install will prompt for host name is him-xxx , xxx is sequential numeric value that is unique per server
-- initial OS set up will prompt for service enable, you need to enable `ssh` but not web service
+- During installation you will be prompted to select which services to enable. Check **SSH server** and leave **web server** unchecked, as shown below:
+
+  ![Debian tasksel — enable SSH server only](https://debian-handbook.info/browse/stable/images/inst-tasksel.png)
+
+  > Check `SSH server` ✓  — leave `web server` unchecked
 
 ```bash
 su - #password to be ACBD_1234
