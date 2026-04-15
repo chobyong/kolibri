@@ -270,23 +270,75 @@ See the **[troubleshooting/](troubleshooting/)** folder:
 
 ---
 
-Cloning to a New Machine
--------------------------
+Setting Up a New Server
+-----------------------
+
+Follow these steps on a freshly installed Debian or Ubuntu machine.
+
+### Before you start
+
+Make sure you have:
+- A machine with **Debian 12** or **Ubuntu Server 22.04+** already installed
+- The `him` user created with sudo access
+- An **Ethernet cable** plugged in (internet required during install)
+- A **Wi-Fi adapter** available (for the hotspot after install)
+
+### Step 1 — Log in as the `him` user
 
 ```bash
-# On the new machine:
-sudo apt-get update && sudo apt-get install -y git curl
-curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
-chmod +x /tmp/setup-him-edu.sh
-sudo /tmp/setup-him-edu.sh
+# If you just finished OS install, log out of root and log in as him
+# Or switch from root:
+su - him
 ```
 
-This single command clones the repo to `/opt/him-edu`, runs the full installer,
-starts the walled garden, and enables it on boot.
+### Step 2 — Run the one-line installer
 
-For Kolibri content, either:
-- Run the Kolibri setup wizard and import channels over the network, or
-- Copy `~/.kolibri/` from the old machine to the new one.
+Copy and paste this into the terminal. It downloads and runs everything automatically:
+
+```bash
+curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh && sudo bash /tmp/setup-him-edu.sh
+```
+
+This single command will:
+1. Install `git` and `curl` if missing
+2. Clone this repo to `/opt/him-edu`
+3. Install Docker, Kolibri, NextCloud, and all services
+4. Start the Wi-Fi hotspot and captive portal
+5. Enable everything to start automatically on boot
+
+> The full install takes **20–40 minutes** depending on internet speed. You can monitor progress as it runs.
+
+### Step 3 — Import Kolibri content channels
+
+Once the server is up, load educational content:
+
+```bash
+# English channels (~270 GB):
+sudo bash /opt/him-edu/import-kolibri-channels.sh english
+
+# Spanish channels (~140 GB):
+sudo bash /opt/him-edu/import-kolibri-channels.sh spanish
+
+# Both:
+sudo bash /opt/him-edu/import-kolibri-channels.sh
+```
+
+> Make sure the Ethernet cable is still connected — this downloads content from the internet.
+> Check available disk space first: `df -h`
+
+### Step 4 — Test it
+
+1. On a phone or laptop, connect to Wi-Fi: **`him-edu`** / password **`1234567890`**
+2. Open any browser — the HIM Education landing page should appear automatically
+3. Tap **Kolibri** or **NextCloud** to verify both load
+
+### Something not working?
+
+```bash
+sudo bash /opt/him-edu/troubleshooting/check-status.sh
+```
+
+See [troubleshooting/README.md](troubleshooting/README.md) for common fixes.
 
 ---
 
