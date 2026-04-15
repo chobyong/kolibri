@@ -60,19 +60,29 @@ The `install.sh` script handles **everything** in one run:
 5. **Walled Garden** — Sets scripts executable, installs systemd services
 6. **Verification** — Checks all components are running
 
-### Step 3 — Start the Walled Garden(optional)
+### Step 3 — Import Kolibri Channels
+
+```bash
+sudo import-kolibri-channels.sh english|spanish
+```
+
+> **Note:** `setup.sh` runs this automatically. Only needed if you want to re-import or add a language manually.
+
+### Step 4 — (Optional / Troubleshooting) Start the Walled Garden
+
+> **Note:** `setup.sh` handles all remaining steps automatically. Steps 4 and beyond are only needed for manual troubleshooting or re-configuration.
 
 ```bash
 sudo ./start_ap.sh
 ```
 
-### Step 4 — (Optional) Enable on Boot
+### Step 5 — (Optional / Troubleshooting) Enable on Boot
 
 ```bash
 sudo systemctl enable walled-garden
 ```
 
-### Step 5 — Test
+### Step 6 — Test
 
 1. Connect to Wi-Fi `him-edu` (password: `1234567890`)
 2. A captive portal page should appear automatically
@@ -209,29 +219,50 @@ File Structure
 
 ```
 /opt/him-edu/
-├── setup-him-edu.sh       # Bootstrap script (clones repo + runs install)
-├── install.sh             # Full installation script (run this first)
-├── start_ap.sh            # Start the walled garden
-├── stop_ap.sh             # Stop the walled garden
-├── iptables_rules.sh      # Firewall rules (called by start/stop)
-├── server.py              # Captive portal web server
+├── setup-him-edu.sh            # Bootstrap script (clones repo + runs install)
+├── install.sh                  # Full installation script (run this first)
+├── import-kolibri-channels.sh  # Import Kolibri content channels (english/spanish)
+├── start_ap.sh                 # Start the walled garden
+├── stop_ap.sh                  # Stop the walled garden
+├── iptables_rules.sh           # Firewall rules (called by start/stop)
+├── server.py                   # Captive portal web server
+├── hostapd.conf                # Wi-Fi access point configuration
+├── dnsmasq.conf                # DHCP/DNS configuration
 ├── www/
-│   └── index.html         # Landing page shown to clients
-├── ssl/                   # Auto-generated SSL certs (gitignored)
-├── nextcloud/             # NextCloud Docker stack
-│   ├── docker-compose.yml # NextCloud, MariaDB, Collabora, Redis, Nginx
-│   └── README.md          # NextCloud setup documentation
-├── doc/                   # Detailed documentation
+│   └── index.html              # Landing page shown to clients
+├── ssl/                        # Auto-generated SSL certs (gitignored)
+│   ├── cert.pem
+│   └── key.pem
+├── nextcloud/                  # NextCloud Docker stack
+│   ├── docker-compose.yml      # NextCloud, MariaDB, Collabora, Redis, Nginx
+│   ├── README.md               # NextCloud setup documentation
+│   ├── config/                 # NextCloud runtime config
+│   ├── custom_apps/            # Installed NextCloud apps
+│   ├── data/                   # NextCloud user data
+│   ├── html/                   # NextCloud web root
+│   ├── letsencrypt/            # SSL certificate storage
+│   ├── nextclouddb/            # MariaDB data volume
+│   ├── npm-data/               # Nginx Proxy Manager data
+│   └── redis/                  # Redis data volume
+├── server-setup/               # Server provisioning tools
+│   ├── build-iso.sh            # Build custom Debian installer ISO
+│   ├── preseed.cfg             # Debian unattended install config
+│   ├── provision.sh            # Post-install provisioning script
+│   ├── docker-compose.yml      # Dev/build environment compose file
+│   ├── deployment-guide.md     # Step-by-step deployment guide
+│   ├── deployment-guide.pdf    # PDF version of deployment guide
+│   └── SETUP.md                # Server setup notes
+├── doc/                        # Detailed documentation
 │   ├── 01-prerequisites.md
 │   ├── 02-walled-garden.md
 │   ├── 03-kolibri.md
 │   ├── 04-nextcloud.md
 │   └── 05-troubleshooting.md
-├── him-ap.service         # Systemd: hotspot (hostapd+dnsmasq)
-├── him-firewall.service   # Systemd: iptables rules
-├── him-webserver.service  # Systemd: captive portal server
-├── walled-garden.service  # Systemd: all-in-one start/stop
-└── README.md              # This file
+├── him-ap.service              # Systemd: hotspot (hostapd+dnsmasq)
+├── him-firewall.service        # Systemd: iptables rules
+├── him-webserver.service       # Systemd: captive portal server
+├── walled-garden.service       # Systemd: all-in-one start/stop
+└── README.md                   # This file
 ```
 
 ---
