@@ -57,7 +57,7 @@ The `install.sh` script handles **everything** in one run:
 5. **Walled Garden** — Sets scripts executable, installs systemd services
 6. **Verification** — Checks all components are running
 
-### Step 3 — Start the Walled Garden
+### Step 3 — Start the Walled Garden(optional)
 
 ```bash
 sudo ./start_ap.sh
