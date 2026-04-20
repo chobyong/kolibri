@@ -31,7 +31,7 @@ Quick Start — Full Installation
 
 ```bash
 su - #password to be ACBD_1234
-usermond -aG sudo him
+usermod -aG sudo him
 # log out and log back in to server
 ```
 ### Step 2 — Clone and Run
