@@ -42,7 +42,7 @@ usermond -aG sudo him
 ```bash
 sudo apt-get update && sudo apt-get install -y git curl
 curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
-chmod +x /tmp/setup-him-edu.sh
+sudo chmod +x /tmp/setup-him-edu.sh
 sudo /tmp/setup-him-edu.sh
 ```
 
