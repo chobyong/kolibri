@@ -27,8 +27,6 @@ Quick Start — Full Installation
 - initial OS install will prompt for host name is him-xxx , xxx is sequential numeric value that is unique per server
 - During installation you will be prompted to select which services to enable. Check **SSH server** and leave **web server** unchecked, as shown below:
 
-  ![Debian tasksel — enable SSH server only](https://debian-handbook.info/browse/stable/images/inst-tasksel.png)
-
   > Check `SSH server` ✓  — leave `web server` unchecked
 
 ```bash
