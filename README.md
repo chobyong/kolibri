@@ -38,7 +38,7 @@ usermond -aG sudo him
 ```
 ### Step 2 — Clone and Run
 - run command from him user, NOT a root user for the rest of command.
-
+- run this script while server is connected to Internet using Ethenet port, Wireless NIC will be converted to access point during setup.
 ```bash
 sudo apt-get update && sudo apt-get install -y git curl
 curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
