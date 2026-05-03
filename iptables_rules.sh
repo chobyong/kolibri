@@ -3,6 +3,10 @@ set -euo pipefail
 
 # Walled garden iptables rules.
 # Usage: iptables_rules.sh [apply|clear] [IFACE] [AP_IP]
+#
+# Only HTTP (port 80) and DNS (port 53) are intercepted.
+# HTTPS (port 443) is NOT redirected — the portal runs HTTP only,
+# avoiding self-signed certificate errors on client devices.
 
 ACTION="${1:-apply}"
 IFACE="${2:-}"
@@ -15,7 +19,6 @@ fi
 
 if [ "$ACTION" = "clear" ]; then
   echo "Clearing walled garden iptables rules..."
-  # Only remove our custom chain, leave Docker and other rules intact
   iptables -D FORWARD -i "$( ls /sys/class/net/ | grep -E '^wl' | head -1 )" -j DROP 2>/dev/null || true
   iptables -t nat -F PREROUTING 2>/dev/null || true
   echo "Done — walled garden iptables cleared."
@@ -50,9 +53,5 @@ iptables -t nat -A PREROUTING -i "$IFACE" -p tcp --dport 53 \
 # Redirect HTTP to captive portal
 iptables -t nat -A PREROUTING -i "$IFACE" -p tcp --dport 80 \
   -j DNAT --to-destination "${AP_IP}:80"
-
-# Redirect HTTPS to captive portal (browsers will show cert warning)
-iptables -t nat -A PREROUTING -i "$IFACE" -p tcp --dport 443 \
-  -j DNAT --to-destination "${AP_IP}:443"
 
 echo "Done — walled garden iptables active."

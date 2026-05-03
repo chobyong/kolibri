@@ -92,7 +92,7 @@ err()  { echo -e "  \033[1;31m✗\033[0m $*" >&2; }
 warn() { echo -e "  \033[1;33m!\033[0m $*"; }
 
 if [ "$(id -u)" -ne 0 ]; then
-  err "Run with sudo:  sudo $0 [english|spanish]"
+  err "Run with sudo:  sudo $0 [english|spanish|all]"
   exit 1
 fi
 
@@ -101,6 +101,21 @@ if ! command -v kolibri >/dev/null 2>&1; then
   exit 1
 fi
 
+# Detect which user the Kolibri service runs as (set by the Debian installer).
+# Running 'kolibri manage' as root writes to /root/.kolibri — wrong instance.
+KOLIBRI_SVC_USER="$(cat /etc/kolibri/username 2>/dev/null | tr -d '[:space:]')"
+KOLIBRI_SVC_USER="${KOLIBRI_SVC_USER:-him}"
+
+if ! id "$KOLIBRI_SVC_USER" >/dev/null 2>&1; then
+  err "Kolibri service user '$KOLIBRI_SVC_USER' not found. Check /etc/kolibri/username."
+  exit 1
+fi
+
+KOLIBRI_HOME_DIR="$(getent passwd "$KOLIBRI_SVC_USER" | cut -d: -f6)/.kolibri"
+ok "Kolibri service user : $KOLIBRI_SVC_USER"
+ok "Kolibri data directory: $KOLIBRI_HOME_DIR"
+ok "Content directory    : $KOLIBRI_HOME_DIR/content/storage"
+
 import_channel() {
   local id="$1" name="$2"
   echo ""
@@ -108,7 +123,7 @@ import_channel() {
   echo "  Channel ID: $id"
 
   echo "    Downloading channel metadata..."
-  if kolibri manage importchannel network "$id"; then
+  if sudo -u "$KOLIBRI_SVC_USER" kolibri manage importchannel network "$id"; then
     ok "Channel metadata downloaded"
   else
     err "Failed to download channel metadata for $name"
@@ -116,7 +131,7 @@ import_channel() {
   fi
 
   echo "    Downloading content (this may take a while)..."
-  if kolibri manage importcontent network "$id"; then
+  if sudo -u "$KOLIBRI_SVC_USER" kolibri manage importcontent network "$id"; then
     ok "$name — content downloaded"
   else
     warn "$name — partial download (some content may have failed)"
@@ -155,9 +170,15 @@ case "$FILTER" in
   spanish|es)
     import_group "Spanish" "${SPANISH_CHANNELS[@]}"
     ;;
-  all|*)
+  all)
     import_group "English" "${ENGLISH_CHANNELS[@]}"
     import_group "Spanish" "${SPANISH_CHANNELS[@]}"
+    ;;
+  *)
+    err "Unknown filter: '$FILTER'"
+    err "Valid options: english (or en), spanish (or es), all"
+    err "Usage: sudo $0 [english|spanish|all]"
+    exit 1
     ;;
 esac
 
