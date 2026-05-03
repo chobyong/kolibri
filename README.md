@@ -15,21 +15,32 @@ with links to **Kolibri** and **NextCloud** — no internet required.
 | NextCloud   | `http://10.42.0.1:8081`  |
 
 ---
+- username : him , password: ABCD_1234 for all application, admin console, etc.
 
 Quick Start — Full Installation
 --------------------------------
 
 ### Step 1 — Install the OS
 
-Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with
-sudo access.
+- Install **Debian 12** (or Ubuntu Server). Create a user (e.g., `him`) with sudo access.
+- Debian or Ubuntu install will prompt for `root` and a user name `him`, password to be ABCD_1234
+- initial OS install will prompt for host name is him-xxx , xxx is sequential numeric value that is unique per server
+- During installation you will be prompted to select which services to enable. Check **SSH server** and leave **web server** unchecked, as shown below:
 
+  > Check `SSH server` ✓  — leave `web server` unchecked
+
+```bash
+su - #password to be ACBD_1234
+usermod -aG sudo him
+# log out and log back in to server
+```
 ### Step 2 — Clone and Run
-
+- run command from him user, NOT a root user for the rest of command.
+- run this script while server is connected to Internet using `Ethenet port`, Wireless NIC will be converted to access point during setup.
 ```bash
 sudo apt-get update && sudo apt-get install -y git curl
 curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
-chmod +x /tmp/setup-him-edu.sh
+sudo chmod +x /tmp/setup-him-edu.sh
 sudo /tmp/setup-him-edu.sh
 ```
 
@@ -51,19 +62,29 @@ The `install.sh` script handles **everything** in one run:
 5. **Walled Garden** — Sets scripts executable, installs systemd services
 6. **Verification** — Checks all components are running
 
-### Step 3 — Start the Walled Garden
+### Step 3 — Import Kolibri Channels
+
+```bash
+sudo import-kolibri-channels.sh english|spanish
+```
+
+> **Note:** Channels are not imported automatically by `setup.sh`. Run this step manually after installation to load content into Kolibri.
+
+### Step 4 — (Optional / Troubleshooting) Start the Walled Garden
+
+> **Note:** `setup.sh` handles all remaining steps automatically. Steps 4 and beyond are only needed for manual troubleshooting or re-configuration.
 
 ```bash
 sudo ./start_ap.sh
 ```
 
-### Step 4 — (Optional) Enable on Boot
+### Step 5 — (Optional / Troubleshooting) Enable on Boot
 
 ```bash
 sudo systemctl enable walled-garden
 ```
 
-### Step 5 — Test
+### Step 6 — Test
 
 1. Connect to Wi-Fi `him-edu` (password: `1234567890`)
 2. A captive portal page should appear automatically
@@ -141,8 +162,8 @@ How It Works
 |                     | NetworkManager.                                             |
 | `iptables_rules.sh` | Applies or clears the walled garden firewall rules.         |
 |                     | Called by `start_ap.sh` and `stop_ap.sh`.                   |
-| `setup_server.sh`   | One-time setup: installs packages, sets permissions,        |
-|                     | installs systemd services, optionally installs Kolibri.     |
+| `install.sh`        | Full automated installation — installs all packages,        |
+|                     | Docker, Kolibri, NextCloud, systemd services.               |
 | `server.py`         | Python captive portal web server. Serves the landing        |
 |                     | page on HTTP (:80) and HTTPS (:443).                        |
 
@@ -178,19 +199,7 @@ sudo systemctl enable him-ap him-firewall him-webserver
 ### Check status
 
 ```bash
-# Check processes
-pgrep -a hostapd
-pgrep -a dnsmasq
-pgrep -af server.py
-
-# Check Wi-Fi AP
-sudo iw dev | grep -A5 "type AP"
-
-# Check iptables rules
-sudo iptables -t nat -L PREROUTING -n
-
-# Check DHCP leases
-cat /var/lib/misc/dnsmasq.leases
+sudo bash /opt/him-edu/troubleshooting/check-status.sh
 ```
 
 ---
@@ -200,29 +209,54 @@ File Structure
 
 ```
 /opt/him-edu/
-├── setup-him-edu.sh       # Bootstrap script (clones repo + runs install)
-├── install.sh             # Full installation script (run this first)
-├── start_ap.sh            # Start the walled garden
-├── stop_ap.sh             # Stop the walled garden
-├── iptables_rules.sh      # Firewall rules (called by start/stop)
-├── server.py              # Captive portal web server
+├── setup-him-edu.sh            # Bootstrap script (clones repo + runs install)
+├── install.sh                  # Full installation script (run this first)
+├── import-kolibri-channels.sh  # Import Kolibri content channels (english/spanish)
+├── start_ap.sh                 # Start the walled garden
+├── stop_ap.sh                  # Stop the walled garden
+├── iptables_rules.sh           # Firewall rules (called by start/stop)
+├── server.py                   # Captive portal web server
+├── hostapd.conf                # Wi-Fi access point configuration
+├── dnsmasq.conf                # DHCP/DNS configuration
 ├── www/
-│   └── index.html         # Landing page shown to clients
-├── ssl/                   # Auto-generated SSL certs (gitignored)
-├── nextcloud/             # NextCloud Docker stack
-│   ├── docker-compose.yml # NextCloud, MariaDB, Collabora, Redis, Nginx
-│   └── README.md          # NextCloud setup documentation
-├── doc/                   # Detailed documentation
+│   └── index.html              # Landing page shown to clients
+├── ssl/                        # Auto-generated SSL certs (gitignored)
+│   ├── cert.pem
+│   └── key.pem
+├── nextcloud/                  # NextCloud Docker stack
+│   ├── docker-compose.yml      # NextCloud, MariaDB, Collabora, Redis, Nginx
+│   ├── README.md               # NextCloud setup documentation
+│   ├── config/                 # NextCloud runtime config
+│   ├── custom_apps/            # Installed NextCloud apps
+│   ├── data/                   # NextCloud user data
+│   ├── html/                   # NextCloud web root
+│   ├── letsencrypt/            # SSL certificate storage
+│   ├── nextclouddb/            # MariaDB data volume
+│   ├── npm-data/               # Nginx Proxy Manager data
+│   └── redis/                  # Redis data volume
+├── server-setup/               # Tools for building new servers (not used in normal operation)
+│   ├── README.md               # What this folder is and how to use it
+│   ├── build-iso.sh            # Build custom Debian installer ISO
+│   ├── preseed.cfg             # Debian unattended install config
+│   ├── provision.sh            # First-boot provisioning script
+│   ├── docker-compose.yml      # Reference copy of NextCloud Docker stack
+│   ├── deployment-guide.md     # Step-by-step deployment guide
+│   ├── deployment-guide.pdf    # PDF version of deployment guide
+│   └── SETUP.md                # Reference server (HIM-010) system spec
+├── doc/                        # Detailed documentation
 │   ├── 01-prerequisites.md
 │   ├── 02-walled-garden.md
 │   ├── 03-kolibri.md
-│   ├── 04-nextcloud.md
-│   └── 05-troubleshooting.md
-├── him-ap.service         # Systemd: hotspot (hostapd+dnsmasq)
-├── him-firewall.service   # Systemd: iptables rules
-├── him-webserver.service  # Systemd: captive portal server
-├── walled-garden.service  # Systemd: all-in-one start/stop
-└── README.md              # This file
+│   └── 04-nextcloud.md
+├── troubleshooting/            # Troubleshooting guides and diagnostic tools
+│   ├── README.md               # Quick problem/solution table
+│   ├── guide.md                # In-depth fixes for each component
+│   └── check-status.sh         # Script to check all services at once
+├── him-ap.service              # Systemd: hotspot (hostapd+dnsmasq)
+├── him-firewall.service        # Systemd: iptables rules
+├── him-webserver.service       # Systemd: captive portal server
+├── walled-garden.service       # Systemd: all-in-one start/stop
+└── README.md                   # This file
 ```
 
 ---
@@ -230,37 +264,83 @@ File Structure
 Troubleshooting
 ---------------
 
-| Problem | Solution |
-|---------|----------|
-| No captive portal popup | Open `http://neverssl.com` manually in a browser |
-| HTTPS certificate warning | Expected — click "Advanced" → "Proceed". The portal uses a self-signed cert |
-| No IP address on client | Check `pgrep dnsmasq` is running. Check `sudo iw dev` shows AP mode |
-| hostapd fails to start | Run `sudo iw list` and verify "AP" is in supported interface modes |
-| "Address already in use" for dnsmasq | Another dnsmasq is running — `sudo pkill dnsmasq` then retry |
-| Kolibri unreachable | Verify Kolibri is running: `systemctl status kolibri` |
-| NextCloud unreachable | Verify container is running: `docker ps` |
-| DNS not redirecting | Check iptables DNS rules: `sudo iptables -t nat -L -n` should show port 53 DNAT |
-| Wi-Fi interface not found | Check `ls /sys/class/net/ \| grep wl` — may need a USB Wi-Fi adapter |
+See the **[troubleshooting/](troubleshooting/)** folder:
+
+- [troubleshooting/README.md](troubleshooting/README.md) — quick problem/solution table
+- [troubleshooting/guide.md](troubleshooting/guide.md) — in-depth fixes for each component
+- [troubleshooting/check-status.sh](troubleshooting/check-status.sh) — run to check all services at once
 
 ---
 
-Cloning to a New Machine
--------------------------
+Setting Up a New Server
+-----------------------
+
+Follow these steps on a freshly installed Debian or Ubuntu machine.
+
+### Before you start
+
+Make sure you have:
+- A machine with **Debian 12** or **Ubuntu Server 22.04+** already installed
+- The `him` user created with sudo access
+- An **Ethernet cable** plugged in (internet required during install)
+- A **Wi-Fi adapter** available (for the hotspot after install)
+
+### Step 1 — Log in as the `him` user
 
 ```bash
-# On the new machine:
-sudo apt-get update && sudo apt-get install -y git curl
-curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh
-chmod +x /tmp/setup-him-edu.sh
-sudo /tmp/setup-him-edu.sh
+# If you just finished OS install, log out of root and log in as him
+# Or switch from root:
+su - him
 ```
 
-This single command clones the repo to `/opt/him-edu`, runs the full installer,
-starts the walled garden, and enables it on boot.
+### Step 2 — Run the one-line installer
 
-For Kolibri content, either:
-- Run the Kolibri setup wizard and import channels over the network, or
-- Copy `~/.kolibri/` from the old machine to the new one.
+Copy and paste this into the terminal. It downloads and runs everything automatically:
+
+```bash
+curl -fsSL -o /tmp/setup-him-edu.sh https://raw.githubusercontent.com/chobyong/kolibri/main/setup-him-edu.sh && sudo bash /tmp/setup-him-edu.sh
+```
+
+This single command will:
+1. Install `git` and `curl` if missing
+2. Clone this repo to `/opt/him-edu`
+3. Install Docker, Kolibri, NextCloud, and all services
+4. Start the Wi-Fi hotspot and captive portal
+5. Enable everything to start automatically on boot
+
+> The full install takes **20–40 minutes** depending on internet speed. You can monitor progress as it runs.
+
+### Step 3 — Import Kolibri content channels
+
+Once the server is up, load educational content:
+
+```bash
+# English channels (~270 GB):
+sudo bash /opt/him-edu/import-kolibri-channels.sh english
+
+# Spanish channels (~140 GB):
+sudo bash /opt/him-edu/import-kolibri-channels.sh spanish
+
+# Both:
+sudo bash /opt/him-edu/import-kolibri-channels.sh
+```
+
+> Make sure the Ethernet cable is still connected — this downloads content from the internet.
+> Check available disk space first: `df -h`
+
+### Step 4 — Test it
+
+1. On a phone or laptop, connect to Wi-Fi: **`him-edu`** / password **`1234567890`**
+2. Open any browser — the HIM Education landing page should appear automatically
+3. Tap **Kolibri** or **NextCloud** to verify both load
+
+### Something not working?
+
+```bash
+sudo bash /opt/him-edu/troubleshooting/check-status.sh
+```
+
+See [troubleshooting/README.md](troubleshooting/README.md) for common fixes.
 
 ---
 
@@ -275,4 +355,6 @@ Detailed documentation is available in the `doc/` folder:
 | [doc/02-walled-garden.md](doc/02-walled-garden.md)    | Hotspot, DHCP, DNS, captive portal architecture    |
 | [doc/03-kolibri.md](doc/03-kolibri.md)                | Kolibri installation, content import, management   |
 | [doc/04-nextcloud.md](doc/04-nextcloud.md)            | NextCloud Docker stack, apps, Collabora config     |
-| [doc/05-troubleshooting.md](doc/05-troubleshooting.md)| Common issues and fixes for all components         |
+| [server-setup/README.md](server-setup/README.md)              | How to build a new server using the ISO installer  |
+| [troubleshooting/README.md](troubleshooting/README.md)        | Quick problem/solution table                       |
+| [troubleshooting/guide.md](troubleshooting/guide.md)          | In-depth fixes for each component                  |

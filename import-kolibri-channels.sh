@@ -96,6 +96,16 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+# Always store Kolibri data in the him user's home directory,
+# regardless of who runs this script.
+if [ ! -d /home/him ]; then
+  warn "/home/him does not exist — creating it"
+  mkdir -p /home/him
+  chown him:him /home/him
+  chmod 755 /home/him
+fi
+export KOLIBRI_HOME=/home/him/.kolibri
+
 if ! command -v kolibri >/dev/null 2>&1; then
   err "Kolibri is not installed."
   exit 1
