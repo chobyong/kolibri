@@ -158,35 +158,112 @@ sudo systemctl restart kolibri
 journalctl -u kolibri -f
 ```
 
-### Importing Content Channels
+---
 
-Use the import script after installation:
+## Importing Content Channels
+
+### First-Time Download (requires internet + Ethernet)
+
+Use `import-kolibri-channels.sh` after installation. Ethernet must be
+connected — the walled-garden Wi-Fi firewall blocks internet traffic.
 
 ```bash
-# English channels (~270 GB):
-sudo bash /opt/him-edu/import-kolibri-channels.sh english
+# English channels only (~270 GB):
+sudo /opt/him-edu/import-kolibri-channels.sh english
 
-# Spanish channels (~140 GB):
-sudo bash /opt/him-edu/import-kolibri-channels.sh spanish
+# Spanish channels only (~140 GB):
+sudo /opt/him-edu/import-kolibri-channels.sh spanish
 
-# Both languages:
-sudo bash /opt/him-edu/import-kolibri-channels.sh
+# Both languages (~410 GB — check disk space first):
+df -h
+sudo /opt/him-edu/import-kolibri-channels.sh all
 ```
 
-> Ethernet must be connected. Check available disk space first: `df -h`
+The script runs `kolibri manage importchannel/importcontent` as the `him`
+service user, so all content lands in `/home/him/.kolibri/content/`.
 
-**Manually via the Kolibri UI (while online):**
+### Manually via the Kolibri UI (while online)
+
 1. Open `http://10.42.0.1:8080` in a browser
 2. Go to **Device** → **Channels**
 3. Click **Import** → **Kolibri Studio**
 4. Select channels and topics to download
 
-**From a USB drive (offline):**
+### From a USB Drive (offline)
+
 1. On an internet-connected machine, use Kolibri to download channels
 2. Export to USB from **Device** → **Channels** → **Export**
 3. On this server, import from **Device** → **Channels** → **Import** → **Local drive**
 
-### Default Ports
+---
+
+## Recovering from a Database Reset
+
+**When to use this:** The main database (`db.sqlite3`) was accidentally
+deleted, corrupted, or wiped — but the content files are still on disk in
+`/home/him/.kolibri/content/`. Kolibri shows zero channels even though
+all the data is there.
+
+Use `fix-kolibri.sh` to restore everything **without re-downloading** any content.
+
+```bash
+sudo bash /opt/him-edu/fix-kolibri.sh
+```
+
+### What it does (4 steps)
+
+| Step | Action |
+|------|--------|
+| 1 | Stops the Kolibri service |
+| 2 | Clears corrupted process cache |
+| 3 | Re-registers each channel from local disk (`importchannel disk`) |
+| 4 | Marks all content available (`importcontent disk`), then restarts Kolibri |
+
+### When `fix-kolibri.sh` vs `import-kolibri-channels.sh`
+
+| Situation | Script to use |
+|-----------|--------------|
+| First-time setup, no content downloaded yet | `import-kolibri-channels.sh` |
+| Database wiped but content files still on disk | `fix-kolibri.sh` |
+| Migrating server — copying `.kolibri/` from old machine | `fix-kolibri.sh` |
+| Adding new channels not previously downloaded | `import-kolibri-channels.sh` |
+
+### Verify the restore
+
+```bash
+# Check Kolibri is running and shows channels
+systemctl status kolibri
+tail -20 /home/him/.kolibri/logs/kolibri.txt
+
+# Open in browser
+http://10.42.0.1:8080/  →  Device → Channels
+```
+
+---
+
+## Lesson Builder (Coach Tool)
+
+Coaches can browse Kolibri content organized by **grade level** and
+**subject** — rather than navigating channel-by-channel — and create
+class lessons directly from a web page.
+
+**URL:** `http://10.42.0.1/browse`
+
+1. Log in with your Kolibri coach username and password
+2. Select a **Grade Level** and **Subject**
+3. Click **Search** — results appear from all imported channels
+4. Tick the items you want
+5. Enter a lesson name, select a class, click **Create Lesson**
+
+The lesson is immediately visible to learners in that class inside Kolibri.
+
+> The Lesson Builder is served by the portal server (`server.py`) and
+> communicates with Kolibri's REST API via a server-side proxy — no
+> cross-origin issues on any browser.
+
+---
+
+## Default Ports
 
 | Port | Protocol | Purpose        |
 |------|----------|----------------|
