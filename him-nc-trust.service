@@ -1,0 +1,13 @@
+[Unit]
+Description=Update NextCloud trusted_domains with current host IPs
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/him-edu/update-nc-trusted-domains.sh
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

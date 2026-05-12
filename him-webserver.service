@@ -1,7 +1,7 @@
 [Unit]
 Description=HIM Education Captive Portal Web Server
-After=network.target him-ap.service him-firewall.service
-Wants=him-ap.service him-firewall.service
+After=network-online.target him-ap.service him-firewall.service
+Wants=network-online.target him-ap.service him-firewall.service
 
 [Service]
 Type=simple
