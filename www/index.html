@@ -91,15 +91,15 @@
       Choose a service below to get started.
     </p>
     <div class="services">
-      <a class="btn btn-kolibri" href="http://10.42.0.1:8080/">
+      <a class="btn btn-kolibri" id="btn-kolibri" href="#">
         Kolibri — Learning Platform
         <div class="desc">Interactive lessons, videos &amp; exercises</div>
       </a>
-      <a class="btn btn-lessons" href="http://10.42.0.1/browse">
+      <a class="btn btn-lessons" href="/browse">
         Lesson Builder
         <div class="desc">Coaches: find content by grade &amp; subject, create class lessons</div>
       </a>
-      <a class="btn btn-nextcloud" href="http://10.42.0.1:8081/">
+      <a class="btn btn-nextcloud" id="btn-nextcloud" href="#">
         NextCloud — File Sharing
         <div class="desc">Documents, resources &amp; collaboration</div>
       </a>
@@ -108,5 +108,10 @@
       HIM Education &mdash; him-edu Wi-Fi Network
     </div>
   </div>
+  <script>
+    var h = window.location.hostname;
+    document.getElementById('btn-kolibri').href  = 'http://' + h + ':8080/';
+    document.getElementById('btn-nextcloud').href = 'http://' + h + ':8081/';
+  </script>
 </body>
 </html>
