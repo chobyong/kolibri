@@ -105,7 +105,7 @@ class CaptiveHandler(BaseHTTPRequestHandler):
         host_header = self.headers.get('Host', 'localhost')
         hostname = host_header.split(':')[0]
 
-        cf_hosts = PORTAL_CONFIG.get('cloudflare_hosts', {})
+        cf_hosts = load_config().get('cloudflare_hosts', {})
         if hostname in cf_hosts:
             urls = cf_hosts[hostname]
         else:
