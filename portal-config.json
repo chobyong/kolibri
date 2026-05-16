@@ -1,8 +1,8 @@
 {
   "cloudflare_hosts": {
-    "him-edu.example.com": {
-      "kolibri":   "https://kolibri.him-edu.example.com",
-      "nextcloud": "https://nextcloud.him-edu.example.com"
+    "edu-portal.heaveninme.us": {
+      "kolibri":   "https://kolibri.heaveninme.us",
+      "nextcloud": "https://nextcloud.heaveninme.us"
     }
   }
 }
