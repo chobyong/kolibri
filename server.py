@@ -21,6 +21,7 @@ import threading
 import subprocess
 import urllib.request
 import urllib.error
+import ipaddress
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 ThreadingHTTPServer.allow_reuse_address = True
@@ -100,18 +101,27 @@ class CaptiveHandler(BaseHTTPRequestHandler):
 
         If the Host matches a cloudflare_hosts entry in portal-config.json,
         return the configured Cloudflare URLs (e.g. https://kolibri.example.com).
-        Otherwise auto-generate local port-based URLs from the hostname.
+        If the Host is an IP address, use it directly for local port-based URLs.
+        Otherwise (a random domain intercepted by the walled garden), fall back
+        to the configured ap_ip so service links remain valid.
         """
         host_header = self.headers.get('Host', 'localhost')
         hostname = host_header.split(':')[0]
 
-        cf_hosts = load_config().get('cloudflare_hosts', {})
+        cfg = load_config()
+        cf_hosts = cfg.get('cloudflare_hosts', {})
         if hostname in cf_hosts:
             urls = cf_hosts[hostname]
         else:
+            try:
+                ipaddress.ip_address(hostname)
+                local_host = hostname
+            except ValueError:
+                # Domain name intercepted by the walled garden — use the AP IP
+                local_host = cfg.get('ap_ip', '10.42.0.1')
             urls = {
-                'kolibri':   f'http://{hostname}:8080/',
-                'nextcloud': f'http://{hostname}:8081/',
+                'kolibri':   f'http://{local_host}:8080/',
+                'nextcloud': f'http://{local_host}:8081/',
             }
 
         body = json.dumps(urls).encode()
