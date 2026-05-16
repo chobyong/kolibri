@@ -115,9 +115,12 @@
     </div>
   </div>
   <script>
-    var h = window.location.hostname;
-    document.getElementById('btn-kolibri').href  = 'http://' + h + ':8080/';
-    document.getElementById('btn-nextcloud').href = 'http://' + h + ':8081/';
+    fetch('/config')
+      .then(function(r) { return r.json(); })
+      .then(function(cfg) {
+        document.getElementById('btn-kolibri').href   = cfg.kolibri;
+        document.getElementById('btn-nextcloud').href = cfg.nextcloud;
+      });
   </script>
 </body>
 </html>

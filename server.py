@@ -6,11 +6,13 @@ with a self-signed certificate.
 
 Routes:
   /              → www/index.html  (captive portal)
+  /config        → JSON: service URLs for the current hostname
   /browse        → www/browse.html (Kolibri lesson builder)
   /kolibri-api/* → proxy to http://127.0.0.1:8080/api/*
   other paths    → www/index.html  (captive portal)
 """
 
+import json
 import os
 import re
 import sys
@@ -23,11 +25,12 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 ThreadingHTTPServer.allow_reuse_address = True
 
-ROOT     = os.path.dirname(os.path.abspath(__file__))
-WWW_DIR  = os.path.join(ROOT, 'www')
-CERT_DIR = os.path.join(ROOT, 'ssl')
-CERT_PEM = os.path.join(CERT_DIR, 'cert.pem')
-KEY_PEM  = os.path.join(CERT_DIR, 'key.pem')
+ROOT        = os.path.dirname(os.path.abspath(__file__))
+WWW_DIR     = os.path.join(ROOT, 'www')
+CERT_DIR    = os.path.join(ROOT, 'ssl')
+CERT_PEM    = os.path.join(CERT_DIR, 'cert.pem')
+KEY_PEM     = os.path.join(CERT_DIR, 'key.pem')
+CONFIG_PATH = os.path.join(ROOT, 'portal-config.json')
 
 KOLIBRI_URL = 'http://127.0.0.1:8080'
 
@@ -41,7 +44,8 @@ MIME_TYPES = {
     '.ico':  'image/x-icon',
 }
 
-INDEX_BYTES = b''
+INDEX_BYTES   = b''
+PORTAL_CONFIG = {}
 
 
 def load_index():
@@ -50,13 +54,26 @@ def load_index():
         return f.read()
 
 
+def load_config():
+    try:
+        with open(CONFIG_PATH) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        print(f'Warning: could not load {CONFIG_PATH}: {e}', file=sys.stderr)
+        return {}
+
+
 class CaptiveHandler(BaseHTTPRequestHandler):
     """Captive portal + static file server + Kolibri API proxy."""
 
     # ------------------------------------------------------------------ dispatch
 
     def do_GET(self):
-        if self.path.startswith('/kolibri-api/'):
+        if self.path == '/config':
+            self._serve_config()
+        elif self.path.startswith('/kolibri-api/'):
             self._proxy('GET')
         elif not self._serve_static():
             self._serve_portal()
@@ -75,6 +92,35 @@ class CaptiveHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.end_headers()
+
+    # ------------------------------------------------------------------ config
+
+    def _serve_config(self):
+        """Return service URLs as JSON based on the Host header.
+
+        If the Host matches a cloudflare_hosts entry in portal-config.json,
+        return the configured Cloudflare URLs (e.g. https://kolibri.example.com).
+        Otherwise auto-generate local port-based URLs from the hostname.
+        """
+        host_header = self.headers.get('Host', 'localhost')
+        hostname = host_header.split(':')[0]
+
+        cf_hosts = PORTAL_CONFIG.get('cloudflare_hosts', {})
+        if hostname in cf_hosts:
+            urls = cf_hosts[hostname]
+        else:
+            urls = {
+                'kolibri':   f'http://{hostname}:8080/',
+                'nextcloud': f'http://{hostname}:8081/',
+            }
+
+        body = json.dumps(urls).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
 
     # ------------------------------------------------------------------ static files
 
@@ -204,12 +250,13 @@ def run_https(port=443):
 
 
 def main():
-    global INDEX_BYTES
+    global INDEX_BYTES, PORTAL_CONFIG
     if os.geteuid() != 0:
         print('This script must be run as root to bind to low ports.', file=sys.stderr)
         sys.exit(1)
 
-    INDEX_BYTES = load_index()
+    INDEX_BYTES   = load_index()
+    PORTAL_CONFIG = load_config()
 
     t_http = threading.Thread(target=run_http, args=(80,), daemon=True)
     t_http.start()
