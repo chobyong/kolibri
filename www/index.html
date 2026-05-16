@@ -238,6 +238,27 @@
         document.getElementById('btn-kolibri').href   = cfg.kolibri;
         document.getElementById('btn-nextcloud').href = cfg.nextcloud;
       });
+
+    document.querySelector('.hero-cta').addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById('services');
+      var top = target.getBoundingClientRect().top + window.pageYOffset;
+      var start = window.pageYOffset;
+      var dist  = top - start;
+      var dur   = 500;
+      var t0    = null;
+      function step(ts) {
+        if (!t0) t0 = ts;
+        var p = Math.min((ts - t0) / dur, 1);
+        window.scrollTo(0, start + dist * (p < 0.5 ? 2*p*p : -1+(4-2*p)*p));
+        if (p < 1) requestAnimationFrame(step);
+      }
+      if (window.requestAnimationFrame) {
+        requestAnimationFrame(step);
+      } else {
+        window.scrollTo(0, top);
+      }
+    });
   </script>
 </body>
 </html>
