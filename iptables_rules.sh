@@ -19,7 +19,9 @@ fi
 
 if [ "$ACTION" = "clear" ]; then
   echo "Clearing walled garden iptables rules..."
-  iptables -D FORWARD -i "$( ls /sys/class/net/ | grep -E '^wl' | head -1 )" -j DROP 2>/dev/null || true
+  _WL=$(ls /sys/class/net/ | grep -E '^wl' | head -1)
+  iptables -D FORWARD -i "$_WL" -d 172.16.0.0/12 -p tcp -j ACCEPT 2>/dev/null || true
+  iptables -D FORWARD -i "$_WL" -j DROP 2>/dev/null || true
   iptables -t nat -F PREROUTING 2>/dev/null || true
   echo "Done — walled garden iptables cleared."
   exit 0
@@ -39,8 +41,15 @@ echo "Applying walled garden rules on $IFACE (portal: $AP_IP)..."
 # Flush only PREROUTING (our rules), leave Docker NAT rules intact
 iptables -t nat -F PREROUTING
 
-# Block forwarding on wireless interface only — Ethernet and Docker stay unaffected
+# Remove stale rules before re-adding
+iptables -D FORWARD -i "$IFACE" -d 172.16.0.0/12 -p tcp -j ACCEPT 2>/dev/null || true
 iptables -D FORWARD -i "$IFACE" -j DROP 2>/dev/null || true
+
+# Allow wireless clients to reach Docker-hosted services (e.g., NextCloud on port 8081)
+# Docker DNAT rewrites the destination to a 172.16.0.0/12 address before FORWARD is checked.
+iptables -A FORWARD -i "$IFACE" -d 172.16.0.0/12 -p tcp -j ACCEPT
+
+# Block all other forwarding on wireless interface — keeps clients walled off from internet
 iptables -A FORWARD -i "$IFACE" -j DROP
 
 # Intercept ALL DNS traffic (UDP+TCP) and redirect to our dnsmasq

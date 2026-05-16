@@ -14,11 +14,12 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# Fixed entries that are always trusted
+# Fixed entries that are always trusted (Cloudflare tunnel hostname included)
 declare -a DOMAINS=(
     "localhost"
     "10.42.0.1"
     "10.42.0.1:8081"
+    "nextcloud.heaveninme.us"
 )
 
 # Add every current RFC 1918 address (skip loopback and Docker bridges)
