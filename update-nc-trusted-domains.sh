@@ -35,7 +35,7 @@ done < <(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 i=0
 for domain in "${DOMAINS[@]}"; do
     $OCC config:system:set trusted_domains "$i" --value="$domain"
-    ((i++))
+    i=$(( i + 1 ))
 done
 
 echo "NextCloud trusted_domains updated (${#DOMAINS[@]} entries):"

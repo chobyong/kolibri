@@ -365,7 +365,7 @@ setup_walled_garden() {
 
   # Install systemd services
   echo "  Installing systemd services..."
-  for svc in him-ap.service him-firewall.service him-webserver.service walled-garden.service; do
+  for svc in him-ap.service him-firewall.service him-webserver.service him-nc-trust.service walled-garden.service; do
     if [ -f "$SCRIPT_DIR/$svc" ]; then
       cp "$SCRIPT_DIR/$svc" /etc/systemd/system/
     fi
@@ -527,7 +527,7 @@ main() {
   chmod +x "$SCRIPT_DIR/start_ap.sh"
   "$SCRIPT_DIR/start_ap.sh"
   ok "Walled garden started"
-  systemctl enable walled-garden 2>/dev/null || true
+  systemctl enable walled-garden him-nc-trust 2>/dev/null || true
   ok "Walled garden enabled on boot"
 
   echo ""
