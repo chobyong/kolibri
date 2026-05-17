@@ -5,15 +5,22 @@ A self-contained offline educational server. It broadcasts a Wi-Fi hotspot
 (`him-edu`) and redirects all connected wireless clients to a landing page
 with links to **Kolibri**, **NextCloud**, and a coach **Lesson Builder** — no internet required.
 
-| Setting        | Value                          |
-|----------------|--------------------------------|
-| SSID           | `him-edu`                      |
-| Password       | `1234567890`                   |
-| AP IP          | `10.42.0.1`                    |
-| Portal         | `http://10.42.0.1`             |
-| Kolibri        | `http://10.42.0.1:8080`        |
-| Lesson Builder | `http://10.42.0.1/browse`      |
-| NextCloud      | `http://10.42.0.1:8081`        |
+The same server is also accessible remotely through a **Cloudflare tunnel** at `heaveninme.us`.
+
+| Setting        | Value                                        |
+|----------------|----------------------------------------------|
+| SSID           | `him-edu`                                    |
+| Password       | `1234567890`                                 |
+| AP IP          | `10.42.0.1`                                  |
+| Portal (HTTP)  | `http://10.42.0.1`                           |
+| Portal (HTTPS) | `https://10.42.0.1` (self-signed cert)       |
+| Kolibri        | `http://10.42.0.1:8080`                      |
+| Lesson Builder | `http://10.42.0.1/browse`                    |
+| User Manager   | `http://10.42.0.1/admin`                     |
+| NextCloud      | `http://10.42.0.1:8081`                      |
+| CF Portal      | `https://edu-portal.heaveninme.us`           |
+| CF Kolibri     | `https://kolibri.heaveninme.us`              |
+| CF NextCloud   | `https://nextcloud.heaveninme.us`            |
 
 ---
 - username : him , password: ABCD_1234 for all application, admin console, etc.
@@ -118,17 +125,24 @@ How It Works
      ├──►│  hostapd         → Runs the Wi-Fi AP          │
      │   │  dnsmasq         → DHCP (10.42.0.10-254)      │
      │   │                    DNS (all domains→10.42.0.1) │
-     │   │  iptables        → Blocks internet (FORWARD    │
-     │   │                    DROP), redirects DNS/HTTP   │
-     │   │                    to portal (HTTP only)        │
-     │   │  server.py       → Captive portal on :80       │
+     │   │  iptables        → Docker ACCEPT (172.16/12)  │
+     │   │                    FORWARD DROP (no internet) │
+     │   │                    DNS + HTTP redirect to AP  │
+     │   │  server.py       → Captive portal on :80 (HTTP)│
+     │   │                    and :443 (HTTPS, self-signed)│
+     │   │                    /config → service URL JSON  │
      │   │                                               │
      │   │  Kolibri         → Learning platform on :8080  │
      │   │  NextCloud       → File sharing on :8081       │
      │   └───────────────────────────────────────────────┘
      │
      └─ Client sees "HIM Education" landing page
-        with buttons to Kolibri, Lesson Builder, and NextCloud
+        with buttons to Kolibri, Lesson Builder, User Manager, and NextCloud
+
+ Remote access (internet required):
+     Cloudflare Tunnel → edu-portal.heaveninme.us → portal
+                       → kolibri.heaveninme.us    → Kolibri
+                       → nextcloud.heaveninme.us  → NextCloud
 ```
 
 ### What each component does
@@ -143,21 +157,36 @@ How It Works
    landing page.
 
 3. **iptables** — Enforces the walled garden:
+   - `FORWARD ACCEPT` for Docker-DNAT traffic (172.16.0.0/12) — allows clients to reach NextCloud on port 8081 (Docker rewrites the destination before FORWARD is checked).
    - `FORWARD DROP` — Clients cannot reach the internet.
    - DNS redirect (port 53 UDP/TCP) — Catches clients with hardcoded DNS
      (e.g. 8.8.8.8) and sends queries to our dnsmasq.
    - HTTP redirect (port 80) → captive portal.
 
-4. **server.py** — A Python HTTP server on port 80 (HTTP only, no HTTPS).
-   Serves `www/index.html` for captive portal detection, `www/browse.html`
-   for the coach Lesson Builder, and proxies `/kolibri-api/*` requests to
-   Kolibri on port 8080.
+4. **server.py** — A Python HTTP/HTTPS server.
+   - Port 80 (HTTP): serves the captive portal and all pages.
+   - Port 443 (HTTPS): same handler with a self-signed certificate (avoids browser errors for HTTPS-only clients).
+   - `GET /config` → returns JSON with service URLs (Kolibri, NextCloud). If the request comes through a Cloudflare tunnel hostname, returns the CF URLs; if the Host is an IP, returns port-based local URLs; otherwise falls back to `ap_ip` (10.42.0.1).
+   - `GET /browse` → `www/browse.html` (Lesson Builder).
+   - `GET /admin` → `www/admin.html` (bulk user manager — add students/coaches/admins).
+   - `/kolibri-api/*` → proxied to Kolibri on port 8080.
+   - Static files in `www/` served by extension.
 
 5. **Kolibri** (port 8080) — Offline learning platform with videos,
    exercises, and lessons. Clients access it directly at `http://10.42.0.1:8080`.
 
 6. **NextCloud** (port 8081) — File sharing and collaboration platform.
    Accessed at `http://10.42.0.1:8081`.
+
+7. **portal-config.json** — Configuration file for the `/config` endpoint.
+   Maps Cloudflare tunnel hostnames to their respective service URLs.
+   Also supports an `ap_ip` key to override the default `10.42.0.1`.
+   The server reloads this file on every `/config` request — no restart needed after edits.
+
+8. **him-nc-trust.service** — Systemd oneshot service that runs
+   `update-nc-trusted-domains.sh` on boot (after network is up) to ensure
+   NextCloud always accepts connections from all current server IP addresses
+   and Cloudflare hostnames.
 
 ### What the scripts do
 
@@ -170,8 +199,9 @@ How It Works
 | `stop_ap.sh`                  | Kills hostapd, dnsmasq, captive portal server. Clears        |
 |                               | iptables rules. Returns the Wi-Fi interface to               |
 |                               | NetworkManager.                                              |
-| `iptables_rules.sh`           | Applies or clears the walled garden firewall rules (HTTP     |
-|                               | and DNS only — no HTTPS redirect). Called by start/stop.     |
+| `iptables_rules.sh`           | Applies or clears the walled garden firewall rules. Adds     |
+|                               | ACCEPT for Docker-DNAT (172.16/12) before DROP, then         |
+|                               | intercepts DNS and HTTP only. Called by start/stop.          |
 | `install.sh`                  | Full automated installation — installs all packages,         |
 |                               | Docker, Kolibri, NextCloud, systemd services.                |
 | `import-kolibri-channels.sh`  | Downloads Kolibri content channels from the internet.        |
@@ -180,9 +210,15 @@ How It Works
 | `fix-kolibri.sh`              | Repairs Kolibri after a database reset or corruption.        |
 |                               | Re-registers channels already on disk without re-downloading.|
 |                               | Usage: `sudo bash fix-kolibri.sh`                            |
+| `update-nc-trusted-domains.sh`| Rebuilds NextCloud `trusted_domains` with all current RFC    |
+|                               | 1918 IPs plus fixed entries (localhost, 10.42.0.1,           |
+|                               | nextcloud.heaveninme.us). Run automatically on boot via      |
+|                               | `him-nc-trust.service`.                                      |
 | `server.py`                   | Python captive portal web server. Serves the landing page    |
-|                               | on HTTP (:80), the Lesson Builder at `/browse`, and proxies  |
-|                               | Kolibri API calls for the Lesson Builder.                    |
+|                               | on HTTP (:80) and HTTPS (:443, self-signed), the Lesson      |
+|                               | Builder at `/browse`, the User Manager at `/admin`, serves   |
+|                               | static files from `www/`, proxies Kolibri API calls, and     |
+|                               | exposes `/config` for dynamic service URL routing.           |
 
 ---
 
@@ -210,7 +246,7 @@ sudo systemctl enable walled-garden
 
 **Or individual services:**
 ```bash
-sudo systemctl enable him-ap him-firewall him-webserver
+sudo systemctl enable him-ap him-firewall him-webserver him-nc-trust
 ```
 
 ### Check status
@@ -218,6 +254,23 @@ sudo systemctl enable him-ap him-firewall him-webserver
 ```bash
 sudo bash /opt/him-edu/troubleshooting/check-status.sh
 ```
+
+### Update Cloudflare tunnel hostnames
+
+Edit `portal-config.json` to add or change Cloudflare tunnel hostnames:
+
+```json
+{
+  "cloudflare_hosts": {
+    "edu-portal.heaveninme.us": {
+      "kolibri":   "https://kolibri.heaveninme.us",
+      "nextcloud": "https://nextcloud.heaveninme.us"
+    }
+  }
+}
+```
+
+The server reloads this file on every `/config` request — no restart needed.
 
 ---
 
@@ -232,13 +285,18 @@ File Structure
 ├── fix-kolibri.sh              # Repair Kolibri after database reset (no re-download needed)
 ├── start_ap.sh                 # Start the walled garden
 ├── stop_ap.sh                  # Stop the walled garden
-├── iptables_rules.sh           # Firewall rules — HTTP + DNS only (called by start/stop)
-├── server.py                   # Captive portal web server (HTTP only, port 80)
-├── hostapd.conf                # Wi-Fi access point configuration
+├── iptables_rules.sh           # Firewall rules — Docker ACCEPT, then DROP, DNS+HTTP redirect
+├── server.py                   # Captive portal web server (HTTP :80, HTTPS :443)
+├── portal-config.json          # Cloudflare tunnel hostname → service URL mapping
+├── hostapd.conf                # Wi-Fi access point config (generated by start_ap.sh)
+├── hostapd.conf.tmpl           # Template for hostapd.conf (used by start_ap.sh)
 ├── dnsmasq.conf                # DHCP/DNS configuration
+├── update-nc-trusted-domains.sh# Rebuild NextCloud trusted_domains on boot
 ├── www/
-│   ├── index.html              # Landing page shown to clients
-│   └── browse.html             # Coach Lesson Builder (browse by grade/subject, create lessons)
+│   ├── index.html              # Landing page (hero photo, grouped service cards)
+│   ├── browse.html             # Coach Lesson Builder (browse by grade/subject)
+│   ├── admin.html              # Bulk user manager — create students/coaches/admins
+│   └── hero.jpg                # Hero photo for the landing page
 ├── nextcloud/                  # NextCloud Docker stack
 │   ├── docker-compose.yml      # NextCloud, MariaDB, Collabora, Redis, Nginx
 │   ├── README.md               # NextCloud setup documentation
@@ -268,9 +326,13 @@ File Structure
 │   ├── README.md               # Quick problem/solution table
 │   ├── guide.md                # In-depth fixes for each component
 │   └── check-status.sh         # Script to check all services at once
+├── ssl/                        # Auto-generated self-signed TLS certificate (git-ignored)
+│   ├── cert.pem
+│   └── key.pem
 ├── him-ap.service              # Systemd: hotspot (hostapd+dnsmasq)
 ├── him-firewall.service        # Systemd: iptables rules
-├── him-webserver.service       # Systemd: captive portal server
+├── him-webserver.service       # Systemd: captive portal server (HTTP + HTTPS)
+├── him-nc-trust.service        # Systemd: update NextCloud trusted_domains on boot
 ├── walled-garden.service       # Systemd: all-in-one start/stop
 └── README.md                   # This file
 ```

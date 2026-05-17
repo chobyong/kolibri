@@ -1,0 +1,186 @@
+
+============================================================
+     HIM Education Server — Full Installation
+============================================================
+  User:   him
+  SSID:   him-edu
+  AP IP:  10.42.0.1
+  Dir:    /opt/him-edu
+============================================================
+
+[1;34m>>>[0m Phase 0: Set Hostname
+  Current hostname: HIM-018
+  Enter new hostname (press Enter to keep 'HIM-018'):   [1;32m✓[0m Keeping hostname: HIM-018
+
+[1;34m>>>[0m Phase 1: System Prerequisites
+  [1;32m✓[0m git already installed (2.47.3)
+  [1;32m✓[0m curl already installed
+  [1;32m✓[0m hostapd already installed
+  [1;32m✓[0m dnsmasq already installed
+  [1;32m✓[0m iptables already installed
+  [1;32m✓[0m python3 already installed
+  [1;32m✓[0m openssl already installed
+  [1;32m✓[0m iw already installed
+  [1;32m✓[0m Power saving disabled (suspend/hibernate masked)
+
+[1;34m>>>[0m Phase 2: Docker
+  [1;32m✓[0m Docker already installed (26.1.5+dfsg1)
+  [1;32m✓[0m Docker Compose plugin available
+  [1;32m✓[0m User 'him' already in docker group
+
+[1;34m>>>[0m Phase 3: Kolibri Learning Platform
+  [1;32m✓[0m Kolibri already installed (kolibri, version 0.19.3)
+  [1;32m✓[0m Kolibri service is running
+
+[1;34m>>>[0m Phase 4: NextCloud Docker Stack
+  Creating volume directories...
+  [1;32m✓[0m Volume directories ready
+  Starting Docker Compose stack...
+time="2026-05-07T18:39:04-04:00" level=warning msg="/opt/him-edu/nextcloud/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Network cloud  Creating
+ Network cloud  Created
+ Container nextcloud-db  Creating
+ Container collabora  Creating
+ Container redis  Creating
+ Container nginx-proxy  Creating
+ Container collabora  Created
+ Container nginx-proxy  Created
+ Container nextcloud-db  Created
+ Container redis  Created
+ Container nextcloud  Creating
+ Container nextcloud  Created
+ Container redis  Starting
+ Container nextcloud-db  Starting
+ Container collabora  Starting
+ Container nginx-proxy  Starting
+ Container nextcloud-db  Started
+ Container redis  Started
+ Container nextcloud  Starting
+ Container collabora  Started
+ Container nginx-proxy  Started
+ Container nextcloud  Started
+  [1;32m✓[0m Containers started
+  Waiting for NextCloud to be ready...
+  Waiting for MariaDB to be ready...
+  [1;32m✓[0m MariaDB is ready
+  Running initial NextCloud setup...
+Nextcloud was successfully installed
+  [1;32m✓[0m NextCloud installed (him/ABCD_1234)
+  Configuring NextCloud settings...
+System config value trusted_domains => 1 set to string 10.42.0.1:8081
+System config value trusted_domains => 2 set to string 10.42.0.1
+System config value overwrite.cli.url set to string http://10.42.0.1:8081
+System config value overwriteprotocol set to string http
+System config value allow_local_remote_servers set to boolean true
+System config value has_internet_connection set to boolean true
+System config value appstoreenabled set to boolean true
+  [1;32m✓[0m NextCloud configured
+
+[1;34m>>>[0m Phase 5: NextCloud Apps (Calendar, Notes, Office)
+  Installing calendar v6.2.1...
+calendar 6.2.1 enabled
+  [1;32m✓[0m calendar v6.2.1 installed and enabled
+  Installing notes v4.13.0...
+notes 4.13.0 enabled
+  [1;32m✓[0m notes v4.13.0 installed and enabled
+  Installing richdocuments v10.1.0...
+richdocuments 10.1.0 enabled
+  [1;32m✓[0m richdocuments v10.1.0 installed and enabled
+  Configuring Collabora integration...
+Config value 'wopi_url' for app 'richdocuments' is now set to 'http://collabora:9980', stored as mixed in fast cache
+Config value 'public_wopi_url' for app 'richdocuments' is now set to 'http://10.42.0.1:9980', stored as mixed in fast cache
+Config value 'wopi_allowlist' for app 'richdocuments' is now set to '10.42.0.0/24,172.18.0.0/16', stored as mixed in fast cache
+  [1;32m✓[0m Collabora WOPI configured
+
+[1;34m>>>[0m Phase 6: Walled Garden (Hotspot, DHCP, DNS, Captive Portal)
+  [1;32m✓[0m Scripts set executable
+  [1;32m✓[0m Wireless interface detected: wlp2s0
+  Installing systemd services...
+  [1;32m✓[0m Systemd services installed
+  [1;32m✓[0m NetworkManager is active
+
+[1;34m>>>[0m Phase 8: Tailscale
+  [1;32m✓[0m Tailscale already installed (1.96.4)
+  [1;32m✓[0m tailscaled service enabled
+
+  Activating Tailscale with SSH enabled...
+  A login URL will appear — open it in a browser to authenticate.
+
+
+To authenticate, visit:
+
+	https://login.tailscale.com/a/13ed26e801a034
+
+Success.
+  [1;32m✓[0m Tailscale activated (hostname: HIM-018, SSH enabled)
+
+[1;34m>>>[0m Phase 7: Verification
+
+  Checking components...
+  [1;32m✓[0m git
+  [1;32m✓[0m curl
+  [1;32m✓[0m docker
+  [1;32m✓[0m docker compose
+  [1;32m✓[0m User 'him' in docker group
+  [1;32m✓[0m hostapd
+  [1;32m✓[0m dnsmasq
+  [1;32m✓[0m Kolibri installed
+  [1;32m✓[0m Container: nextcloud
+  [1;32m✓[0m Container: nextcloud-db
+  [1;32m✓[0m Container: collabora
+  [1;32m✓[0m Container: redis
+  [1;32m✓[0m Container: nginx-proxy
+  [1;32m✓[0m NextCloud app: calendar
+  [1;32m✓[0m NextCloud app: notes
+  [1;32m✓[0m NextCloud app: richdocuments
+  [1;32m✓[0m Wireless interface: wlp2s0
+  [1;32m✓[0m Tailscale connected (100.102.225.82)
+  [1;32m✓[0m Hostname: HIM-018
+
+[1;34m>>>[0m Starting walled garden and enabling on boot...
+Using wireless interface: wlp2s0
+Cleaning up previous instances...
+Removing interface from NetworkManager...
+Configuring interface wlp2s0 with IP 10.42.0.1/24...
+Generating hostapd config (SSID: him-edu)...
+Generating dnsmasq config...
+Starting hostapd...
+wlp2s0: interface state UNINITIALIZED->ENABLED
+wlp2s0: AP-ENABLED 
+Starting dnsmasq (DHCP + DNS)...
+dnsmasq started (PID 13014)
+Applying iptables walled garden rules...
+Applying walled garden rules on wlp2s0 (portal: 10.42.0.1)...
+Done — walled garden iptables active.
+Starting captive portal web server...
+
+=========================================
+  HIM Education Walled Garden is ACTIVE
+=========================================
+  SSID:      him-edu
+  Password:  1234567890
+  Portal:    http://10.42.0.1/
+  Kolibri:   http://10.42.0.1:8080/
+  NextCloud: http://10.42.0.1:8081/
+  Interface: wlp2s0
+=========================================
+  [1;32m✓[0m Walled garden started
+  [1;32m✓[0m Walled garden enabled on boot
+
+============================================================
+     Installation Complete!
+============================================================
+
+  Services (all running):
+    Landing Page:  http://10.42.0.1/
+    Kolibri:       http://10.42.0.1:8080/
+    NextCloud:     http://10.42.0.1:8081/  (him / ABCD_1234)
+    Collabora:     http://10.42.0.1:9980/
+    Nginx Proxy:   http://10.42.0.1:81/
+
+  Wi-Fi:  SSID=him-edu  Password=1234567890
+
+  Tailscale SSH: enabled (hostname: HIM-018)
+
+  NOTE: Log out and back in for docker group to take effect.
+============================================================
