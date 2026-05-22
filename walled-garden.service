@@ -1,6 +1,7 @@
 [Unit]
 Description=HIM Education Walled Garden (all-in-one)
 After=network.target
+Conflicts=him-ap.service him-firewall.service him-webserver.service
 
 [Service]
 Type=oneshot
