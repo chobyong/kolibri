@@ -10,13 +10,16 @@ set -euo pipefail
 #
 #  Usage:
 #    sudo ./import-kolibri-channels.sh              # Import all channels
-#    sudo ./import-kolibri-channels.sh english       # English only
-#    sudo ./import-kolibri-channels.sh spanish       # Spanish only
+#    sudo ./import-kolibri-channels.sh english       # English only (39 channels, ~270 GB)
+#    sudo ./import-kolibri-channels.sh spanish       # Spanish only (16 channels, ~140 GB)
+#    sudo ./import-kolibri-channels.sh french        # French only  (13 channels, ~54 GB)
+#    sudo ./import-kolibri-channels.sh haitian       # Haitian Creole (3 channels)
+#    sudo ./import-kolibri-channels.sh multilingual  # Multilingual (6 channels)
 #
 #  WARNING: Downloading ALL channels requires 350+ GB of disk space.
 #           Check available space with: df -h
 #
-#  Channel IDs sourced from https://studio.learningequality.org (March 2026)
+#  Channel IDs sourced from https://studio.learningequality.org (updated May 2026)
 # =============================================================================
 
 # --- English Channels (39) ---------------------------------------------------
@@ -61,6 +64,41 @@ ENGLISH_CHANNELS=(
   "74f36493bb475b62935fa8705ed59fed|Thoughtful Learning"
   "000409f81dbe5d1ba67101cb9fed4530|Touchable Earth (en)"
   "a1239cf0220a5f8cb633d6d1cafcb9a2|World Health Organization COVID Advice for Public"
+)
+
+# --- French Channels (16) ----------------------------------------------------
+#     Total: ~54+ GB
+FRENCH_CHANNELS=(
+  "8166e765a0095bfaa49e98d034653dc5|Aflatoun Academy (fr)"
+  "0294a064f7224899887ce07bd47f9991|Citoyennes de la Terre"
+  "d2e80a502efa45d199d24a2b08dccd8d|Citoyennes: Portraits de femmes engagees"
+  "0095239178fc583f8e4fb846b319c576|Decouverte Digitale (Francais)"
+  "0928b562e60256b081c0fbc990f3f33e|HP LIFE - Cours (Francais)"
+  "878ec2e6f88c5c268b1be6f202833cd4|Khan Academy (Francais)"
+  "708fc2e73a0f4ab59dfeebfd1203896d|Les jeux traditionnels pour apprendre les maths"
+  "3e7b3ae54d9753a7b2ff43d5c12c2094|PhET simulations interactives"
+  "f52913a93b625dc8a563d7a9492f422d|Sensibilisation au Numerique (Francais)"
+  "8ef625db6e86506c9a3bac891e413fff|Sikana (Francais)"
+  "b336c2e2c45c53d5b24e5c476a54b077|Touchable Earth (fr)"
+  "90de6b49f71251c1855e34a416da2f20|WHO COVID Advice for Public (fr)"
+  "adb2042d0abe40b8918e599c9f36ab19|Education internationale de la petite enfance"
+)
+
+# --- Haitian Creole Channels (3) ---------------------------------------------
+HAITIAN_CHANNELS=(
+  "58db7fdb8f115b92bc1a83bc98245665|All Children Reading (Ayiti)"
+  "8aa6be55d57c48f9a5727f3f5b0090c7|An n aprann ak Lakou Kajou"
+  "f4715a7769725c729d25d29977b8b308|Similasyon Enteraktif PhET"
+)
+
+# --- Multilingual Channels (6) -----------------------------------------------
+MULTILINGUAL_CHANNELS=(
+  "f9d3e0e46ea25789bbed672ff6a399ed|African Storybook Library (multiple languages)"
+  "378cf4128c854c2795c100b5aca7a3ed|Inclusive Home Learning Activities"
+  "254f1b384c2551ed80ada423449212a1|PointB 21CS Guide"
+  "305b12ea5ea84fa18f933705c23f5ee0|School of Thought"
+  "3eaf194585ca4051bdfded581e85b072|Stop It at the Start Toolkit"
+  "f393c30f95fb4bec87f873b2013ec9e3|The Passionfruit Island Series"
 )
 
 # --- Spanish Channels (16) ---------------------------------------------------
@@ -180,14 +218,41 @@ case "$FILTER" in
   spanish|es)
     import_group "Spanish" "${SPANISH_CHANNELS[@]}"
     ;;
+  french|fr)
+    import_group "French" "${FRENCH_CHANNELS[@]}"
+    ;;
+  haitian|ht)
+    import_group "Haitian Creole" "${HAITIAN_CHANNELS[@]}"
+    ;;
+  multilingual|multi)
+    import_group "Multilingual" "${MULTILINGUAL_CHANNELS[@]}"
+    ;;
   all)
     import_group "English" "${ENGLISH_CHANNELS[@]}"
     import_group "Spanish" "${SPANISH_CHANNELS[@]}"
+    import_group "French" "${FRENCH_CHANNELS[@]}"
+    import_group "Haitian Creole" "${HAITIAN_CHANNELS[@]}"
+    import_group "Multilingual" "${MULTILINGUAL_CHANNELS[@]}"
+    ;;
+  from-file)
+    FILE="${2:-/opt/him-edu/channels.json}"
+    if [ ! -f "$FILE" ]; then
+      err "File not found: $FILE"
+      err "Generate it first with: ./export-channel-list.sh"
+      exit 1
+    fi
+    log "Importing from $FILE"
+    while IFS= read -r line; do
+      id=$(echo "$line" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d['id'])")
+      name=$(echo "$line" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d['name'])")
+      import_channel "$id" "$name"
+    done < <(python3 -c "import json; [print(json.dumps(c)) for c in json.load(open('$FILE'))]")
     ;;
   *)
     err "Unknown filter: '$FILTER'"
-    err "Valid options: english (or en), spanish (or es), all"
-    err "Usage: sudo $0 [english|spanish|all]"
+    err "Valid options: english (en), spanish (es), french (fr), haitian (ht), multilingual (multi), all"
+    err "            or: from-file [path/to/channels.json]"
+    err "Usage: sudo $0 [english|spanish|french|haitian|multilingual|all|from-file]"
     exit 1
     ;;
 esac
