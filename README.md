@@ -75,17 +75,27 @@ The `install.sh` script handles **everything** in one run:
 Connect the server to Ethernet (internet required), then run:
 
 ```bash
-# English channels only (~270 GB):
-sudo /opt/him-edu/import-kolibri-channels.sh english
+# Import the exact same 61 channels as all existing HIM servers (recommended):
+sudo /opt/him-edu/import-kolibri-channels.sh from-file /opt/him-edu/channels.json
 
-# Spanish channels only (~140 GB):
-sudo /opt/him-edu/import-kolibri-channels.sh spanish
-
-# Both languages (~410 GB — check disk space first: df -h):
-sudo /opt/him-edu/import-kolibri-channels.sh all
+# Or import by language group:
+sudo /opt/him-edu/import-kolibri-channels.sh english       # English only (~270 GB)
+sudo /opt/him-edu/import-kolibri-channels.sh spanish       # Spanish only (~140 GB)
+sudo /opt/him-edu/import-kolibri-channels.sh french        # French only  (~54 GB)
+sudo /opt/him-edu/import-kolibri-channels.sh haitian       # Haitian Creole
+sudo /opt/him-edu/import-kolibri-channels.sh multilingual  # Multilingual
+sudo /opt/him-edu/import-kolibri-channels.sh all           # Everything (~350+ GB)
 ```
 
-> **Note:** Channels are not imported automatically by `setup.sh`. Run this step manually after installation to load content into Kolibri.
+`channels.json` in the repo is the authoritative list of all installed channels.
+To update it after adding or removing channels on an existing server:
+
+```bash
+/opt/him-edu/export-channel-list.sh   # regenerates channels.json from running Kolibri
+git add channels.json && git commit -m "Update channel list" && git push
+```
+
+> **Note:** Channels are not imported automatically by `install.sh`. Run this step manually after installation to load content into Kolibri.
 
 ### Step 4 — (Optional / Troubleshooting) Start the Walled Garden
 
@@ -204,9 +214,13 @@ How It Works
 |                               | intercepts DNS and HTTP only. Called by start/stop.          |
 | `install.sh`                  | Full automated installation — installs all packages,         |
 |                               | Docker, Kolibri, NextCloud, systemd services.                |
+| `export-channel-list.sh`      | Queries the running Kolibri instance and writes `channels.json` |
+|                               | with all installed channel IDs. Re-run and commit whenever   |
+|                               | channels are added or removed.                               |
 | `import-kolibri-channels.sh`  | Downloads Kolibri content channels from the internet.        |
 |                               | Run once after installation while Ethernet is connected.     |
-|                               | Usage: `sudo ./import-kolibri-channels.sh [english|spanish|all]` |
+|                               | `from-file channels.json` imports the exact set in the repo. |
+|                               | Usage: `sudo ./import-kolibri-channels.sh [from-file FILE\|english\|spanish\|french\|haitian\|multilingual\|all]` |
 | `fix-kolibri.sh`              | Repairs Kolibri after a database reset or corruption.        |
 |                               | Re-registers channels already on disk without re-downloading.|
 |                               | Usage: `sudo bash fix-kolibri.sh`                            |
@@ -281,7 +295,9 @@ File Structure
 /opt/him-edu/
 ├── setup-him-edu.sh            # Bootstrap script (clones repo + runs install)
 ├── install.sh                  # Full installation script (run this first)
-├── import-kolibri-channels.sh  # Download Kolibri content channels (english/spanish/all)
+├── channels.json               # Authoritative list of all installed Kolibri channels (61)
+├── export-channel-list.sh      # Regenerate channels.json from the running Kolibri instance
+├── import-kolibri-channels.sh  # Download Kolibri channels (from-file|english|spanish|french|haitian|multilingual|all)
 ├── fix-kolibri.sh              # Repair Kolibri after database reset (no re-download needed)
 ├── start_ap.sh                 # Start the walled garden
 ├── stop_ap.sh                  # Stop the walled garden
