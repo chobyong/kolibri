@@ -1,0 +1,197 @@
+{
+  "kolibri_url": "http://localhost:8080",
+  "facility_id": "90eb4cde5f34837318f268565cf111fb",
+  "classrooms": [
+    {
+      "name": "Kolibri",
+      "lessons": [
+        {
+          "title": "Kolibri Admin",
+          "description": "",
+          "active": true,
+          "resources": [
+            {
+              "content_id": "cbc69a4711d24c2e82b61a4a6044e49f",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "96174bcc30844b8ea0d5dc3efa6f8e9f"
+            },
+            {
+              "content_id": "ecf4ea3931714695ad583b8289dd4452",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "0848ccb14636477280cc0a0cd81ba462"
+            },
+            {
+              "content_id": "6138e55969c0450da7d1b7a3b79b4194",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "2258a5557e064abc93aabb2ea2448572"
+            },
+            {
+              "content_id": "cc4f6bd07f114834a9b0583e4a04c4b6",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "f57b61825f3d4359a5be6b7fd5103973"
+            },
+            {
+              "content_id": "c028adff9c594897ab2cdd119eb6e800",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "63f969a6988648d78964ec80ec1aeab3"
+            },
+            {
+              "content_id": "ee5841fb39344f8794b0cb8c4da9c199",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "c891a12610324e0db0a6c22e8b181f31"
+            },
+            {
+              "content_id": "0ca8bf48cddb4920913be9489c22afe0",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "c0263b7be55845f9bc8ad962dca97381"
+            },
+            {
+              "content_id": "d8f552e2866542368797ef9372f11242",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "eb97dcc19cf3433a9efb4c3074658347"
+            },
+            {
+              "content_id": "c34a4abedb0d40318563950fe43ae2f2",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "2aa7a0bf48794657bfde16e8fd258a4c"
+            },
+            {
+              "content_id": "6cbb4b0212f34ccabc2c2b914e1ce8a4",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "3a290f61da4f46fc87d7ae4740555f27"
+            }
+          ]
+        },
+        {
+          "title": "Kolibri Coaches",
+          "description": "",
+          "active": true,
+          "resources": [
+            {
+              "content_id": "9f4e1b4671f246aea837c42fee1d4bad",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "9c10782ce62e4cefb047d743dde20815"
+            },
+            {
+              "content_id": "8c4d126e6bb44e748ee50312869c1605",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "e05158e1370643c1bfa241e0222afb18"
+            },
+            {
+              "content_id": "3357917a485a425587ccde2a9e51f49f",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "b582452f89634cb1a4bbbf697ade0c17"
+            },
+            {
+              "content_id": "87cc6c2542a54ba0965846ad3927cc63",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "0ee7fe767236447899d215cf2bf39670"
+            },
+            {
+              "content_id": "60e93a4a4e05465fa7b124a550672ce6",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "6d164f491682478ba892b92023831fa4"
+            },
+            {
+              "content_id": "b6b1878d2cd94896ab655782217d829d",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "4426cf10fc62446687e65982f8f0b6ea"
+            },
+            {
+              "content_id": "105e0b36df384b7fae9a3f5d954cecb4",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "09f6735c29324123aee90b8eac6b9056"
+            },
+            {
+              "content_id": "0e257252853c4b099864feeee8928519",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "fcbb0839740047a59b0cc0e38d5a4073"
+            },
+            {
+              "content_id": "3037426d4c0d486698ccaba9d62a464e",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "c97aca9232b74a429bc6ddef3abe67af"
+            },
+            {
+              "content_id": "0fc86d4f03ae4bb6b09ca1d518244f29",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "33c695d8bedd43ad8f0051bfb0717480"
+            },
+            {
+              "content_id": "fedb283419df46f392dd83db703d8f6c",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "196c99cfbddc4fbfa342c93c79701876"
+            },
+            {
+              "content_id": "10beafae491f4d8285195041ceecd9c4",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "18c7e00c94274549abffe19c78b734dd"
+            },
+            {
+              "content_id": "7503b7ae6961453ab2fb813f52d45207",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "f1d33bf2bcaf4ff4ba3e9ad3446ce3a1"
+            },
+            {
+              "content_id": "32904daefed44b5da13d0a641a485d87",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "504e03a52d1e4cec9bbb1a1d770c1ee7"
+            },
+            {
+              "content_id": "a57f1eeb5b114f2398996d54a6b3d3b3",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "84f69a3efbd14b898a7f86ebedc51cad"
+            },
+            {
+              "content_id": "d716fed2cca045d991327d06dd8976ca",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "e5e531b30652436786cdab12d399d064"
+            }
+          ]
+        },
+        {
+          "title": "Kolibri-Student",
+          "description": "",
+          "active": true,
+          "resources": [
+            {
+              "content_id": "a69e1f2b61f243e99144fca5b30d4030",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "9599f581993e43838f19fe04fdf01af9"
+            },
+            {
+              "content_id": "0844bcc8667c4591897932a0defba287",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "8593e4eec90a4cc3a4f2967c0c7dfd03"
+            },
+            {
+              "content_id": "ffe1ca3f28a144f5af055f33aa5de777",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "02d0f23cf45a4198a8845023424b5b31"
+            },
+            {
+              "content_id": "8bb1195258e84a26a4f981c635d457db",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "4ce4039f90b84c7294c8f23735ebb6d7"
+            },
+            {
+              "content_id": "964b14afdd1a45ea8a5f213bf5eb5d72",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "c6a4fd9f1f9b4f91b966028f3e5d8d7d"
+            },
+            {
+              "content_id": "9269a3ae46424662981fa3e3986969c0",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "2c8a17d35ff449158b4b174963f00d5d"
+            },
+            {
+              "content_id": "34b96a52f0904a34a3d8175f4dedc15e",
+              "channel_id": "624e09bb5eeb4d20aa8de62e7b4778a0",
+              "contentnode_id": "710c4833d5d546fbbcaad876fc7374ab"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -97,6 +97,34 @@ git add channels.json && git commit -m "Update channel list" && git push
 
 > **Note:** Channels are not imported automatically by `install.sh`. Run this step manually after installation to load content into Kolibri.
 
+### Step 3b — (Optional) Replicate Classes and Lessons
+
+After channels are imported, you can copy the class structure and lesson playlists from another HIM server to this one:
+
+```bash
+# On the SOURCE server — export classes and lessons:
+/opt/him-edu/export-classes-lessons.sh
+# This creates classes-lessons.json
+
+# Copy classes-lessons.json to the new server, then run:
+sudo /opt/him-edu/import-classes-lessons.sh /opt/him-edu/classes-lessons.json
+```
+
+The import script:
+- Creates any classes that don't already exist
+- Creates the lessons inside each class with the same resource playlists
+- Skips classes and lessons that already exist (safe to run multiple times)
+
+> **Requirement:** The channels referenced by the lessons must already be installed
+> on the target server. Run the channel import (Step 3) first.
+
+To save the current classes/lessons back to the repo after making changes on a server:
+
+```bash
+/opt/him-edu/export-classes-lessons.sh
+git add classes-lessons.json && git commit -m "Update classes and lessons" && git push
+```
+
 ### Step 4 — (Optional / Troubleshooting) Start the Walled Garden
 
 > **Note:** `setup.sh` handles all remaining steps automatically. Steps 4 and beyond are only needed for manual troubleshooting or re-configuration.
