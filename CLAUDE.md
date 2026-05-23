@@ -15,6 +15,12 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 | `www/index.html` | Landing page. Fetches `/config` at load to get service URLs dynamically |
 | `www/admin.html` | Bulk Kolibri user creator (students/coaches/admins via Kolibri API) |
 | `www/browse.html` | Coach Lesson Builder |
+| `channels.json` | Authoritative list of installed Kolibri channels for replication |
+| `export-channel-list.sh` | Dumps installed channels from running Kolibri → `channels.json` |
+| `import-kolibri-channels.sh` | Downloads channels into Kolibri (from file or by language group) |
+| `classes-lessons.json` | Exported Kolibri classes and lesson playlists for replication |
+| `export-classes-lessons.sh` | Dumps all classes + lessons from running Kolibri → `classes-lessons.json` |
+| `import-classes-lessons.sh` | Creates classes and lessons on a new host from `classes-lessons.json` |
 
 ## Architecture Constraints
 
@@ -32,6 +38,22 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 | `him-webserver.service` | server.py (HTTP + HTTPS) |
 | `him-nc-trust.service` | Update NextCloud trusted_domains on boot |
 | `walled-garden.service` | All-in-one wrapper |
+
+## Kolibri API Notes
+
+The Kolibri REST API (v0.19) uses these base paths — **not** `/api/core/`:
+
+| Purpose | Path |
+|---------|------|
+| Login (POST) | `/api/auth/session/` |
+| Classrooms | `/api/auth/classroom/` |
+| Lessons | `/api/lessons/lesson/` |
+| Exams | `/api/exams/exam/` |
+| Public channels | `/api/public/v1/channels/` |
+
+Authentication requires a session cookie. Hit `/en/user/` first to get the CSRF cookie, then POST credentials to `/api/auth/session/`. The `X-CSRFToken` header is only needed if a CSRF cookie is present.
+
+Lesson resources use stable `contentnode_id` values (content-addressed) that are identical across Kolibri instances for the same channel version. Classes/lessons can therefore be replicated to any host that has the same channels installed.
 
 ## Common Tasks
 
@@ -57,6 +79,27 @@ sudo /opt/him-edu/update-nc-trusted-domains.sh
 ```bash
 sudo chown -R him:him /opt/him-edu
 ```
+
+### Export and replicate Kolibri channels to a new server
+```bash
+# On source server — update channels.json
+/opt/him-edu/export-channel-list.sh
+
+# On new server — download the same channels
+sudo /opt/him-edu/import-kolibri-channels.sh from-file /opt/him-edu/channels.json
+```
+
+### Export and replicate classes and lessons to a new server
+```bash
+# On source server — update classes-lessons.json
+/opt/him-edu/export-classes-lessons.sh
+
+# On new server — create the same classes and lessons
+sudo /opt/him-edu/import-classes-lessons.sh /opt/him-edu/classes-lessons.json
+```
+
+> Channels must be imported before lessons (lessons reference content by channel/node ID).
+> Both import scripts are idempotent — safe to re-run; they skip anything that already exists.
 
 ### Commit and push as root
 ```bash
