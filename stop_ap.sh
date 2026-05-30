@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Stop the HIM Education walled garden and restore normal networking.
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+IFACE="wlx00c0cabb67ce"
+DISABLED_IFACE="wlp1s0"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo)." >&2
   exit 2
-fi
-
-# Auto-detect wireless interface
-IFACE=$(iw dev 2>/dev/null | awk '/Interface/{print $2}' | head -1)
-if [ -z "$IFACE" ]; then
-  IFACE=$(ls /sys/class/net/ | grep -E '^wl' | head -1)
 fi
 
 echo "Stopping captive portal web server..."
@@ -31,12 +25,14 @@ else
 fi
 
 echo "Clearing iptables walled garden rules..."
-"$SCRIPT_DIR/iptables_rules.sh" clear
+"$SCRIPT_DIR/iptables_rules.sh" clear "$IFACE"
 
-echo "Restoring interface to NetworkManager..."
-if [ -n "$IFACE" ]; then
-  ip addr flush dev "$IFACE" 2>/dev/null || true
-  nmcli device set "$IFACE" managed yes 2>/dev/null || true
-fi
+echo "Restoring $IFACE to NetworkManager..."
+ip addr flush dev "$IFACE" 2>/dev/null || true
+nmcli device set "$IFACE" managed yes 2>/dev/null || true
+
+echo "Re-enabling internal Wi-Fi card ($DISABLED_IFACE)..."
+nmcli device set "$DISABLED_IFACE" managed yes 2>/dev/null || true
+ip link set "$DISABLED_IFACE" up 2>/dev/null || true
 
 echo "Walled garden stopped."
