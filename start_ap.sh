@@ -16,6 +16,9 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 2
 fi
 
+echo "Setting regulatory domain to US..."
+iw reg set US 2>/dev/null || true
+
 echo "Disabling internal Wi-Fi card ($DISABLED_IFACE)..."
 nmcli device set "$DISABLED_IFACE" managed no 2>/dev/null || true
 ip link set "$DISABLED_IFACE" down 2>/dev/null || true
@@ -30,17 +33,16 @@ echo "Removing $IFACE from NetworkManager..."
 nmcli device set "$IFACE" managed no 2>/dev/null || true
 sleep 1
 
-echo "Configuring interface $IFACE with IP ${AP_IP}/24..."
+echo "Resetting $IFACE to DOWN/managed so hostapd owns AP setup..."
 ip link set "$IFACE" down 2>/dev/null || true
 ip addr flush dev "$IFACE" 2>/dev/null || true
-ip addr add "${AP_IP}/24" dev "$IFACE"
-ip link set "$IFACE" up
-sleep 1
 
 echo "Generating hostapd config (SSID: $SSID)..."
 cat > "$HOSTAPD_CONF" <<EOF
 interface=${IFACE}
 driver=nl80211
+country_code=US
+ieee80211d=1
 ssid=${SSID}
 hw_mode=g
 channel=6
@@ -68,10 +70,26 @@ log-queries
 log-dhcp
 EOF
 
-echo "Starting hostapd..."
-hostapd -B "$HOSTAPD_CONF"
-sleep 2
+echo "Starting hostapd (in background, detached)..."
+nohup hostapd "$HOSTAPD_CONF" > /tmp/hostapd-him.log 2>&1 &
+disown $!
 
+echo "Waiting for AP to come up (COUNTRY_UPDATE takes ~10s)..."
+for i in $(seq 1 30); do
+  if ip link show "$IFACE" 2>/dev/null | grep -q "state UP"; then break; fi
+  sleep 1
+done
+if ! ip link show "$IFACE" 2>/dev/null | grep -q "state UP"; then
+  echo "ERROR: AP interface did not come up within 30s"
+  cat /tmp/hostapd-him.log
+  exit 1
+fi
+
+echo "AP is up — assigning IP ${AP_IP}/24..."
+ip addr add "${AP_IP}/24" dev "$IFACE" 2>/dev/null || true
+
+pkill dnsmasq 2>/dev/null || true
+sleep 1
 echo "Starting dnsmasq (DHCP + DNS)..."
 dnsmasq --conf-file="$DNSMASQ_CONF" --pid-file=/run/him-dnsmasq.pid
 echo "dnsmasq started (PID $(cat /run/him-dnsmasq.pid))"
@@ -82,6 +100,7 @@ echo "Applying iptables walled garden rules..."
 if ! pgrep -f "python3 ${SCRIPT_DIR}/server.py" >/dev/null 2>&1; then
   echo "Starting captive portal web server..."
   nohup python3 "$SCRIPT_DIR/server.py" >"$SCRIPT_DIR/server.log" 2>&1 &
+  disown $!
 fi
 
 echo ""
@@ -94,4 +113,9 @@ echo "  Portal:    http://${AP_IP}/"
 echo "  Kolibri:   http://${AP_IP}:8080/"
 echo "  NextCloud: http://${AP_IP}:8081/"
 echo "  Interface: $IFACE"
-echo "========================================="
+echo "=========================================="
+
+# Keep this process alive so systemd tracks the service CGroup.
+# All child processes (hostapd, dnsmasq, server.py) live until
+# systemd stops this service (which kills the CGroup).
+exec sleep infinity
