@@ -13,6 +13,7 @@ set -euo pipefail
 # =============================================================================
 
 INSTALL_DIR="/opt/him-edu"
+CLONE_TMP="/tmp/him-edu-new"
 REPO_URL="https://github.com/chobyong/kolibri.git"
 
 log()  { echo -e "\n\033[1;34m>>>\033[0m $*"; }
@@ -45,17 +46,16 @@ for pkg in git curl; do
   fi
 done
 
-# --- Clean and clone ---------------------------------------------------------
-log "Preparing $INSTALL_DIR..."
-if [ -d "$INSTALL_DIR" ]; then
-  echo "  Removing existing $INSTALL_DIR..."
-  rm -rf "$INSTALL_DIR"
-  ok "Old installation removed"
-fi
+# --- Clone to temp, then move ------------------------------------------------
+log "Cloning repository to $CLONE_TMP..."
+rm -rf "$CLONE_TMP"
+git clone "$REPO_URL" "$CLONE_TMP"
+ok "Repository cloned"
 
-log "Cloning repository..."
-git clone "$REPO_URL" "$INSTALL_DIR"
-ok "Repository cloned to $INSTALL_DIR"
+log "Installing to $INSTALL_DIR..."
+rm -rf "$INSTALL_DIR"
+mv "$CLONE_TMP" "$INSTALL_DIR"
+ok "Installed to $INSTALL_DIR"
 
 # --- Run the master installer ------------------------------------------------
 log "Running install.sh..."
