@@ -12,6 +12,8 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 | `portal-config.json` | Cloudflare hostname → service URL mapping. Reloaded live on each `/config` request |
 | `iptables_rules.sh` | Walled garden firewall. Must ACCEPT Docker-DNAT (172.16/12) before DROP |
 | `update-nc-trusted-domains.sh` | Rebuilds NextCloud trusted_domains with all current IPs + CF hostnames |
+| `start_ap.sh` | Start walled garden (hostapd + dnsmasq + iptables + server.py) |
+| `stop_ap.sh` | Stop walled garden and restore NetworkManager |
 | `www/index.html` | Landing page. Fetches `/config` at load to get service URLs dynamically |
 | `www/admin.html` | Bulk Kolibri user creator (students/coaches/admins via Kolibri API) |
 | `www/browse.html` | Coach Lesson Builder |
@@ -21,6 +23,42 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 | `classes-lessons.json` | Exported Kolibri classes and lesson playlists for replication |
 | `export-classes-lessons.sh` | Dumps all classes + lessons from running Kolibri → `classes-lessons.json` |
 | `import-classes-lessons.sh` | Creates classes and lessons on a new host from `classes-lessons.json` |
+
+## USB Wi-Fi NIC & AP Configuration
+
+### Hardware
+
+| Interface | Role | Notes |
+|-----------|------|-------|
+| `wlx00c0cabb67ce` | USB Wi-Fi adapter — runs the AP | `wlx` prefix = USB; chipset: **mt7921u** |
+| `wlp1s0` | Internal Wi-Fi card — **disabled** while AP is active | Conflicts with hostapd; set unmanaged + down in `start_ap.sh` |
+
+### AP Startup Order (critical — do not change)
+
+The mt7921u chipset requires a specific sequence or `NL80211_CMD_START_AP` fails:
+
+1. `iw reg set US` — set regulatory domain **first**; world reg (`00`) caps TX power to 3 dBm and silently prevents beaconing even though hostapd daemonizes successfully.
+2. `nmcli device set wlx… managed no` — remove from NetworkManager.
+3. `ip link set wlx… down` + `ip addr flush` — interface must be **DOWN in managed mode** when hostapd starts; bringing it UP first causes "Failed to set beacon parameters".
+4. `hostapd` starts and owns the AP setup (brings interface UP itself).
+5. Wait up to 30 s for interface to reach state UP.
+6. `ip addr add 10.42.0.1/24` — assign IP only **after** hostapd has the interface UP.
+7. `pkill dnsmasq; dnsmasq` — kill any stale dnsmasq first to avoid port 53 conflict.
+8. `exec sleep infinity` — keeps `walled-garden.service` CGroup alive so systemd tracks all child processes (hostapd, dnsmasq, server.py).
+
+### Conflict Resolution
+
+| Conflict | Symptom | Fix |
+|----------|---------|-----|
+| NetworkManager takes back the interface | hostapd loses AP after a short time | `nmcli device set $IFACE managed no` before starting |
+| Internal card (`wlp1s0`) competes | hostapd starts on wrong interface | `nmcli device set wlp1s0 managed no && ip link set wlp1s0 down` |
+| Interface UP before hostapd | `NL80211_CMD_START_AP` fails; "Failed to set beacon parameters" | Leave interface DOWN; let hostapd bring it up |
+| World regulatory domain | hostapd starts but no clients can connect (TX power 3 dBm, no beaconing) | `iw reg set US` as the very first step |
+| Port 53 already in use | dnsmasq fails to start | `pkill dnsmasq` before `dnsmasq` in startup |
+| `systemd-resolved` on port 53 | dnsmasq fails with "address in use" | `sudo systemctl stop systemd-resolved` |
+| him-ap / him-firewall / him-webserver vs walled-garden | Two services fight over the adapter | Those `.service` files are `.disabled`; use `walled-garden.service` only |
+| CGroup lost on boot | `systemctl status walled-garden` shows "inactive" immediately after start | `start_ap.sh` ends with `exec sleep infinity`; service is `Type=simple` |
+| NextCloud container not ready at boot | `him-nc-trust` fails to update trusted_domains | Wait loop in `update-nc-trusted-domains.sh` is 60 s |
 
 ## Architecture Constraints
 
@@ -33,11 +71,11 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 
 | Service | What it does |
 |---------|-------------|
-| `him-ap.service` | hostapd + dnsmasq (Wi-Fi AP) |
-| `him-firewall.service` | iptables walled garden rules |
-| `him-webserver.service` | server.py (HTTP + HTTPS) |
+| `walled-garden.service` | **Primary** — all-in-one (start_ap.sh / stop_ap.sh); `Type=simple` |
+| `him-ap.service` | hostapd + dnsmasq only (disabled — use walled-garden instead) |
+| `him-firewall.service` | iptables walled garden rules (disabled) |
+| `him-webserver.service` | server.py (HTTP + HTTPS) (disabled) |
 | `him-nc-trust.service` | Update NextCloud trusted_domains on boot |
-| `walled-garden.service` | All-in-one wrapper |
 
 ## Kolibri API Notes
 
@@ -59,12 +97,18 @@ Lesson resources use stable `contentnode_id` values (content-addressed) that are
 
 ### Check if services are running
 ```bash
-systemctl status him-ap him-firewall him-webserver him-nc-trust
+systemctl status walled-garden him-nc-trust
 ```
 
-### Restart the portal server
+### Restart the walled garden
 ```bash
-sudo systemctl restart him-webserver
+sudo systemctl restart walled-garden
+```
+
+### Restart only the portal server
+```bash
+sudo pkill -f server.py
+sudo nohup python3 /opt/him-edu/server.py > /opt/him-edu/server.log 2>&1 &
 ```
 
 ### Update Cloudflare hostnames

@@ -8,8 +8,8 @@ set -euo pipefail
 COMPOSE_DIR="/opt/him-edu/nextcloud"
 OCC="docker exec --user www-data nextcloud php occ"
 
-# Wait up to 30s for the NextCloud container to be ready
-for i in $(seq 1 30); do
+# Wait up to 60s for the NextCloud container to be ready
+for i in $(seq 1 60); do
     docker exec nextcloud true 2>/dev/null && break
     sleep 1
 done
