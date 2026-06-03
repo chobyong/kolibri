@@ -24,22 +24,36 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 | `export-classes-lessons.sh` | Dumps all classes + lessons from running Kolibri → `classes-lessons.json` |
 | `import-classes-lessons.sh` | Creates classes and lessons on a new host from `classes-lessons.json` |
 
-## USB Wi-Fi NIC & AP Configuration
+## Wi-Fi NIC & AP Configuration
 
-### Hardware
+### Hardware — Auto-Detection
 
-| Interface | Role | Notes |
-|-----------|------|-------|
-| `wlx00c0cabb67ce` | USB Wi-Fi adapter — runs the AP | `wlx` prefix = USB; chipset: **mt7921u** |
-| `wlp1s0` | Internal Wi-Fi card — **disabled** while AP is active | Conflicts with hostapd; set unmanaged + down in `start_ap.sh` |
+`start_ap.sh` automatically detects the wireless interface at startup — no hardcoded interface name. It scans `/sys/class/net/*/wireless` and applies this priority:
+
+1. **USB adapter** (path contains `/usb`) — preferred when present
+2. **PCIe / M.2 card** (path contains `/pci`) — fallback when no USB adapter found
+
+All other wireless interfaces found on the system are automatically disabled (set unmanaged + down) to prevent conflicts with hostapd.
+
+Confirmed working chipsets:
+
+| Form factor | Chipset | Interface name (example) | Notes |
+|-------------|---------|--------------------------|-------|
+| USB dongle | mt7921u | `wlx00c0cabb67ce` | `wlx` + MAC address |
+| M.2 PCIe | MT7922 (mt7921e driver) | `wlp1s0` | `wlp` + PCI slot |
+
+To see which interface was selected on a running system:
+```bash
+journalctl -u walled-garden | grep "Detected Wi-Fi interface"
+```
 
 ### AP Startup Order (critical — do not change)
 
-The mt7921u chipset requires a specific sequence or `NL80211_CMD_START_AP` fails:
+The mt7921/mt7922 chipset requires a specific sequence or `NL80211_CMD_START_AP` fails:
 
 1. `iw reg set US` — set regulatory domain **first**; world reg (`00`) caps TX power to 3 dBm and silently prevents beaconing even though hostapd daemonizes successfully.
-2. `nmcli device set wlx… managed no` — remove from NetworkManager.
-3. `ip link set wlx… down` + `ip addr flush` — interface must be **DOWN in managed mode** when hostapd starts; bringing it UP first causes "Failed to set beacon parameters".
+2. `nmcli device set <iface> managed no` — remove from NetworkManager.
+3. `ip link set <iface> down` + `ip addr flush` — interface must be **DOWN in managed mode** when hostapd starts; bringing it UP first causes "Failed to set beacon parameters".
 4. `hostapd` starts and owns the AP setup (brings interface UP itself).
 5. Wait up to 30 s for interface to reach state UP.
 6. `ip addr add 10.42.0.1/24` — assign IP only **after** hostapd has the interface UP.
@@ -51,7 +65,7 @@ The mt7921u chipset requires a specific sequence or `NL80211_CMD_START_AP` fails
 | Conflict | Symptom | Fix |
 |----------|---------|-----|
 | NetworkManager takes back the interface | hostapd loses AP after a short time | `nmcli device set $IFACE managed no` before starting |
-| Internal card (`wlp1s0`) competes | hostapd starts on wrong interface | `nmcli device set wlp1s0 managed no && ip link set wlp1s0 down` |
+| Competing wireless card | hostapd starts on wrong interface | `start_ap.sh` disables all non-AP interfaces automatically |
 | Interface UP before hostapd | `NL80211_CMD_START_AP` fails; "Failed to set beacon parameters" | Leave interface DOWN; let hostapd bring it up |
 | World regulatory domain | hostapd starts but no clients can connect (TX power 3 dBm, no beaconing) | `iw reg set US` as the very first step |
 | Port 53 already in use | dnsmasq fails to start | `pkill dnsmasq` before `dnsmasq` in startup |
@@ -93,6 +107,26 @@ Authentication requires a session cookie. Hit `/en/user/` first to get the CSRF 
 
 Lesson resources use stable `contentnode_id` values (content-addressed) that are identical across Kolibri instances for the same channel version. Classes/lessons can therefore be replicated to any host that has the same channels installed.
 
+### Kolibri Diskcache Corruption (500 error on all pages)
+
+**Symptom:** Every Kolibri page returns HTTP 500. Log shows:
+```
+sqlite3.DatabaseError: database disk image is malformed
+```
+at `~/.kolibri/process_cache/*.db`.
+
+**Root cause:** Running `kolibri manage importchannel` or `importcontent` while the Kolibri service is active causes two processes to write to the same `process_cache/` SQLite files simultaneously, corrupting them. This has been observed on multiple hosts.
+
+**Fix — `import-kolibri-channels.sh` now handles this automatically:** it stops Kolibri before importing and restarts it after. If a host is already broken, recover manually:
+
+```bash
+sudo systemctl stop kolibri
+sudo rm -rf /home/him/.kolibri/process_cache
+sudo systemctl start kolibri
+```
+
+**Do not** run `kolibri manage importchannel/importcontent` while the service is running. Always use `import-kolibri-channels.sh` which manages the stop/start cycle.
+
 ## Common Tasks
 
 ### Check if services are running
@@ -119,6 +153,13 @@ Edit `portal-config.json` — changes take effect immediately (no restart).
 sudo /opt/him-edu/update-nc-trusted-domains.sh
 ```
 
+### Fix Kolibri 500 error (corrupted diskcache)
+```bash
+sudo systemctl stop kolibri
+sudo rm -rf /home/him/.kolibri/process_cache
+sudo systemctl start kolibri
+```
+
 ### Fix ownership so `him` user can edit files
 ```bash
 sudo chown -R him:him /opt/him-edu
@@ -129,7 +170,7 @@ sudo chown -R him:him /opt/him-edu
 # On source server — update channels.json
 /opt/him-edu/export-channel-list.sh
 
-# On new server — download the same channels
+# On new server — download the same channels (stops/restarts Kolibri automatically)
 sudo /opt/him-edu/import-kolibri-channels.sh from-file /opt/him-edu/channels.json
 ```
 
