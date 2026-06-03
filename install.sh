@@ -522,13 +522,13 @@ main() {
   install_tailscale
   verify_installation
 
-  # Start the walled garden and enable on boot
-  log "Starting walled garden and enabling on boot..."
-  chmod +x "$SCRIPT_DIR/start_ap.sh"
-  "$SCRIPT_DIR/start_ap.sh"
-  ok "Walled garden started"
-  systemctl enable walled-garden him-nc-trust 2>/dev/null || true
-  ok "Walled garden enabled on boot"
+  # Enable and start walled garden via systemd (never call start_ap.sh directly
+  # — it ends with exec sleep infinity and would hang the install script here)
+  log "Enabling and starting walled garden..."
+  chmod +x "$SCRIPT_DIR/start_ap.sh" "$SCRIPT_DIR/stop_ap.sh"
+  systemctl enable walled-garden him-nc-trust
+  systemctl start walled-garden
+  ok "Walled garden enabled on boot and started"
 
   echo ""
   echo "============================================================"
