@@ -1,13 +1,15 @@
 [Unit]
 Description=HIM Education Walled Garden (all-in-one)
-After=network.target
+After=NetworkManager.service network-online.target
+Wants=network-online.target
 Conflicts=him-ap.service him-firewall.service him-webserver.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
+Type=simple
 ExecStart=/opt/him-edu/start_ap.sh
 ExecStop=/opt/him-edu/stop_ap.sh
+Restart=on-failure
+RestartSec=15
 
 [Install]
 WantedBy=multi-user.target
