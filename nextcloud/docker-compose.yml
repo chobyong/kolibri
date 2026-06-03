@@ -1,6 +1,20 @@
 version: '3'
 
 services:
+  nginx-collab:
+    image: nginx:alpine
+    container_name: nginx-collab
+    restart: unless-stopped
+    depends_on:
+      - nextcloud
+      - collabora
+    volumes:
+      - ./nginx-collab.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - cloud
+    ports:
+      - "8081:80"
+
   nextcloud:
     image: nextcloud
     container_name: nextcloud
@@ -10,8 +24,6 @@ services:
     depends_on:
       - nextclouddb
       - redis
-    ports:
-      - "8081:80"
     volumes:
       - ./html:/var/www/html
       - ./custom_apps:/var/www/html/custom_apps
@@ -57,7 +69,7 @@ services:
       - password=password
       - username=nextcloud
       - domain=10\\..*|172\\..*|192\\.168\\..*|nextcloud|localhost
-      - server_name=10.42.0.1:9980
+      - server_name=10.42.0.1:8081
       - extra_params=--o:ssl.enable=false --o:ssl.termination=false
     ports:
       - "9980:9980"
