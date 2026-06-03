@@ -14,20 +14,23 @@ for i in $(seq 1 60); do
     sleep 1
 done
 
-# Fixed entries that are always trusted (Cloudflare tunnel hostname included)
-declare -a DOMAINS=(
-    "localhost"
-    "10.42.0.1"
-    "10.42.0.1:8081"
-    "nextcloud.heaveninme.us"
-)
+# Build deduplicated trusted domain list using an associative array as a set
+declare -A SEEN
+declare -a DOMAINS
 
-# Add every current RFC 1918 address (skip loopback and Docker bridges)
+_add() { [[ -z "${SEEN[$1]+x}" ]] && DOMAINS+=("$1") && SEEN[$1]=1; }
+
+# Fixed entries always trusted (Cloudflare tunnel hostname included)
+_add "localhost"
+_add "nextcloud.heaveninme.us"
+
+# Add every current RFC 1918 address (covers AP, ethernet, any future interface)
 while IFS= read -r ip; do
     if [[ "$ip" =~ ^10\. ]] || \
        [[ "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]] || \
        [[ "$ip" =~ ^192\.168\. ]]; then
-        DOMAINS+=("$ip" "${ip}:8081")
+        _add "$ip"
+        _add "${ip}:8081"
     fi
 done < <(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 
