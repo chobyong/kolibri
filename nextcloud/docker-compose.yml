@@ -56,7 +56,7 @@ services:
       - TZ=America/Los_Angeles
       - password=password
       - username=nextcloud
-      - domain=10\\.42\\.0\\.1|nextcloud
+      - domain=10\\..*|172\\..*|192\\.168\\..*|nextcloud|localhost
       - server_name=10.42.0.1:9980
       - extra_params=--o:ssl.enable=false --o:ssl.termination=false
     ports:

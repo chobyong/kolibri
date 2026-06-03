@@ -43,3 +43,19 @@ done
 
 echo "NextCloud trusted_domains updated (${#DOMAINS[@]} entries):"
 $OCC config:system:get trusted_domains
+
+# Allow WOPI callbacks from any RFC 1918 address (covers Wi-Fi, ethernet, Docker)
+$OCC config:app:set richdocuments wopi_allowlist \
+    --value="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+echo "richdocuments wopi_allowlist updated"
+
+# Wait for Collabora to be ready then refresh the discovery cache.
+# Without this, a boot race (NextCloud up before Collabora) caches bad XML
+# and document creation buttons disappear until manually refreshed.
+echo "Waiting for Collabora to be ready..."
+for i in $(seq 1 60); do
+    curl -sf http://localhost:9980/hosting/discovery > /dev/null 2>&1 && break
+    sleep 1
+done
+$OCC richdocuments:activate-config
+echo "Collabora discovery cache refreshed"
