@@ -163,6 +163,18 @@ KOLIBRI_HOME_DIR="$(getent passwd "$KOLIBRI_SVC_USER" | cut -d: -f6)/.kolibri"
 ok "Kolibri service user : $KOLIBRI_SVC_USER"
 ok "Kolibri data directory: $KOLIBRI_HOME_DIR"
 ok "Content directory    : $KOLIBRI_HOME_DIR/content/storage"
+# Stop Kolibri before importing — running 'kolibri manage' alongside the live
+# service causes both processes to write to process_cache/*.db simultaneously,
+# corrupting the SQLite diskcache (seen on multiple hosts).
+KOLIBRI_WAS_RUNNING=false
+if systemctl is-active --quiet kolibri 2>/dev/null; then
+  KOLIBRI_WAS_RUNNING=true
+  log "Stopping Kolibri (prevents diskcache corruption during import)..."
+  systemctl stop kolibri
+  rm -rf "${KOLIBRI_HOME_DIR}/process_cache"
+  ok "Kolibri stopped and cache cleared"
+fi
+
 
 import_channel() {
   local id="$1" name="$2"
@@ -256,6 +268,12 @@ case "$FILTER" in
     exit 1
     ;;
 esac
+
+if [ "$KOLIBRI_WAS_RUNNING" = true ]; then
+  log "Restarting Kolibri..."
+  systemctl start kolibri
+  ok "Kolibri restarted"
+fi
 
 echo ""
 echo "============================================================"

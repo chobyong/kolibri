@@ -8,8 +8,23 @@ DHCP_RANGE="10.42.0.10,10.42.0.254,255.255.255.0,12h"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOSTAPD_CONF="${SCRIPT_DIR}/hostapd.conf"
 DNSMASQ_CONF="${SCRIPT_DIR}/dnsmasq.conf"
-IFACE="wlx00c0cabb67ce"
-DISABLED_IFACE="wlp1s0"
+# Auto-detect wireless interface — prefer USB adapter over PCIe/internal.
+_pick_wifi_iface() {
+  local _usb="" _fallback=""
+  for _sys in /sys/class/net/*/wireless; do
+    [ -d "$_sys" ] || continue
+    local _if; _if=$(basename "$(dirname "$_sys")")
+    _fallback="${_fallback:-$_if}"
+    readlink -f "/sys/class/net/$_if/device" 2>/dev/null | grep -q "/usb" && _usb="$_if"
+  done
+  echo "${_usb:-$_fallback}"
+}
+IFACE="$(_pick_wifi_iface)"
+if [ -z "$IFACE" ]; then
+  echo "ERROR: No wireless interface found." >&2
+  exit 1
+fi
+echo "Detected Wi-Fi interface: $IFACE"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo)." >&2
@@ -19,9 +34,14 @@ fi
 echo "Setting regulatory domain to US..."
 iw reg set US 2>/dev/null || true
 
-echo "Disabling internal Wi-Fi card ($DISABLED_IFACE)..."
-nmcli device set "$DISABLED_IFACE" managed no 2>/dev/null || true
-ip link set "$DISABLED_IFACE" down 2>/dev/null || true
+for _other_sys in /sys/class/net/*/wireless; do
+  [ -d "$_other_sys" ] || continue
+  _other=$(basename "$(dirname "$_other_sys")")
+  [ "$_other" = "$IFACE" ] && continue
+  echo "Disabling competing Wi-Fi interface: $_other..."
+  nmcli device set "$_other" managed no 2>/dev/null || true
+  ip link set "$_other" down 2>/dev/null || true
+done
 
 echo "Cleaning up previous instances..."
 pkill hostapd 2>/dev/null || true
