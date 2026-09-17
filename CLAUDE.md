@@ -23,6 +23,8 @@ Self-contained offline educational server for HIM (Heaven In Me) ministry. Runs 
 | `classes-lessons.json` | Exported Kolibri classes and lesson playlists for replication |
 | `export-classes-lessons.sh` | Dumps all classes + lessons from running Kolibri → `classes-lessons.json` |
 | `import-classes-lessons.sh` | Creates classes and lessons on a new host from `classes-lessons.json` |
+| `create-demo-classroom.sh` | Idempotent: creates `student1..studentN` + `Class 1..Class N` in Kolibri and enrolls them 1:1. Runs automatically at the end of `install.sh`; re-run anytime with different args (`count password kolibri_url`) |
+| `install-tailscale.sh` | Optional remote access via Tailscale (SSH enabled). Run separately from `install.sh` — needs internet and interactive browser auth |
 
 ## Wi-Fi NIC & AP Configuration
 

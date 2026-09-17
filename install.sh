@@ -486,6 +486,17 @@ main() {
   systemctl start walled-garden
   ok "Walled garden enabled on boot and started"
 
+  # Demo classroom (student1..student10, Class 1..Class 10) is a convenience
+  # for a fresh deployment, not core infrastructure — never let it abort the
+  # install (e.g. Kolibri wasn't installed because no internet/.deb earlier).
+  if command_exists kolibri; then
+    log "Creating demo classroom (10 students, 10 classes)..."
+    chmod +x "$SCRIPT_DIR/create-demo-classroom.sh"
+    "$SCRIPT_DIR/create-demo-classroom.sh" || warn "Demo classroom setup failed — you can re-run create-demo-classroom.sh later"
+  else
+    warn "Kolibri not installed — skipping demo classroom setup"
+  fi
+
   verify_installation
 
   echo ""
@@ -501,6 +512,8 @@ main() {
   echo "    Nginx Proxy:   http://${AP_IP}:81/"
   echo ""
   echo "  Wi-Fi:  SSID=$SSID  Password=$PASSPHRASE"
+  echo ""
+  echo "  Demo classroom: student1..student10 / 1234567890, enrolled in Class 1..Class 10"
   echo ""
   echo "  Optional remote access:  sudo ./install-tailscale.sh"
   echo ""
