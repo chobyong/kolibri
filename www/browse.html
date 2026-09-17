@@ -340,7 +340,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  try { await apiCall('DELETE', 'auth/session/'); } catch(e) {}
+  try { await apiCall('DELETE', 'auth/session/current/'); } catch(e) {}
   selectedNodes = {};
   currentNodes  = [];
   el('main-section').classList.add('hidden');
@@ -359,22 +359,21 @@ async function loadClasses() {
   var sel = el('sel-class');
   sel.innerHTML = '<option value="">— select class —</option>';
   try {
-    var r = await apiCall('GET', 'kolibriauth/collection/?kind=classroom');
+    var r = await apiCall('GET', 'auth/classroom/?limit=200');
     var data = await r.json();
-    if (Array.isArray(data)) {
-      if (data.length === 0) {
+    var classes = Array.isArray(data) ? data : (data.results || []);
+    if (classes.length === 0) {
+      var o = document.createElement('option');
+      o.disabled = true;
+      o.textContent = '(no classes yet — create one in Kolibri first)';
+      sel.appendChild(o);
+    } else {
+      classes.forEach(function(cls) {
         var o = document.createElement('option');
-        o.disabled = true;
-        o.textContent = '(no classes yet — create one in Kolibri first)';
+        o.value = cls.id;
+        o.textContent = cls.name;
         sel.appendChild(o);
-      } else {
-        data.forEach(function(cls) {
-          var o = document.createElement('option');
-          o.value = cls.id;
-          o.textContent = cls.name;
-          sel.appendChild(o);
-        });
-      }
+      });
     }
   } catch(e) {}
 }
@@ -394,9 +393,8 @@ async function doSearch() {
   el('results-section').classList.add('hidden');
 
   var params = new URLSearchParams({
-    available: 'true',
-    kind_in:   LEAF_KINDS,
-    limit:     '50'
+    kind_in:      LEAF_KINDS,
+    max_results:  '50'
   });
   if (grade)   params.append('grade_levels', grade);
   if (subject) params.append('categories', subject);
@@ -404,10 +402,11 @@ async function doSearch() {
   try {
     var r    = await apiCall('GET', 'content/contentnode/?' + params.toString());
     var data = await r.json();
-    var nodes = Array.isArray(data) ? data : (data.results || []);
+    var nodes   = Array.isArray(data) ? data : (data.results || []);
+    var hasMore = !Array.isArray(data) && !!data.more;
     currentNodes = nodes;
     clearMsg('search-msg');
-    renderResults(nodes);
+    renderResults(nodes, hasMore);
   } catch(e) {
     msg('search-msg', 'Search error: ' + e.message, 'err');
   }
@@ -415,12 +414,13 @@ async function doSearch() {
   el('btn-search').disabled = false;
 }
 
-function renderResults(nodes) {
+function renderResults(nodes, hasMore) {
   var list = el('results-list');
   list.innerHTML = '';
 
   el('result-count').textContent =
-    nodes.length + ' result' + (nodes.length !== 1 ? 's' : '');
+    nodes.length + ' result' + (nodes.length !== 1 ? 's' : '') +
+    (hasMore ? ' (more match — narrow your search to see others)' : '');
 
   nodes.forEach(function(node) {
     var li   = document.createElement('li');

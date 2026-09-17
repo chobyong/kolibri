@@ -279,7 +279,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  try { await apiCall('DELETE', 'auth/session/'); } catch(e) {}
+  try { await apiCall('DELETE', 'auth/session/current/'); } catch(e) {}
   el('main-section').classList.add('hidden');
   el('login-section').classList.remove('hidden');
   el('inp-user').value = '';
