@@ -24,10 +24,6 @@ LOG_FILE="${SCRIPT_DIR}/install.log"
 TARGET_USER="${SUDO_USER:-him}"
 MACHINE_HOSTNAME="$(hostname)"
 
-# NextCloud app versions (update these when upgrading)
-CALENDAR_VER="6.2.1"
-NOTES_VER="4.13.0"
-RICHDOCS_VER="10.1.0"
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -296,7 +292,7 @@ install_nextcloud() {
 # =============================================================================
 
 install_nc_app() {
-  local app_id="$1" app_ver="$2" app_url="$3"
+  local app_id="$1"
 
   # Check if already enabled
   if docker exec -u www-data nextcloud php occ app:list --enabled 2>/dev/null | grep -q "  - ${app_id}:"; then
@@ -304,37 +300,32 @@ install_nc_app() {
     return
   fi
 
-  # Download and extract
-  echo "  Installing $app_id v$app_ver..."
-  docker exec nextcloud bash -c "
-    cd /tmp &&
-    curl -fsSL -o ${app_id}.tar.gz ${app_url} &&
-    tar xzf ${app_id}.tar.gz -C /var/www/html/custom_apps/ &&
-    chown -R www-data:www-data /var/www/html/custom_apps/${app_id} &&
-    rm -f ${app_id}.tar.gz
-  "
-  docker exec -u www-data nextcloud php occ app:enable "$app_id"
-  ok "$app_id v$app_ver installed and enabled"
+  # Let the appstore pick a version compatible with the running NextCloud
+  # release — a pinned tarball URL goes stale the moment NextCloud is
+  # upgraded and a hard failure here must not abort the rest of install.sh.
+  echo "  Installing $app_id..."
+  if docker exec -u www-data nextcloud php occ app:install "$app_id"; then
+    ok "$app_id installed and enabled"
+  else
+    warn "$app_id could not be installed (likely incompatible with this NextCloud version) — skipping"
+  fi
 }
 
 install_nextcloud_apps() {
   log "Phase 5: NextCloud Apps (Calendar, Notes, Office)"
 
-  install_nc_app "calendar" "$CALENDAR_VER" \
-    "https://github.com/nextcloud-releases/calendar/releases/download/v${CALENDAR_VER}/calendar-v${CALENDAR_VER}.tar.gz"
+  install_nc_app "calendar"
+  install_nc_app "notes"
+  install_nc_app "richdocuments"
 
-  install_nc_app "notes" "$NOTES_VER" \
-    "https://github.com/nextcloud-releases/notes/releases/download/v${NOTES_VER}/notes-v${NOTES_VER}.tar.gz"
-
-  install_nc_app "richdocuments" "$RICHDOCS_VER" \
-    "https://github.com/nextcloud-releases/richdocuments/releases/download/v${RICHDOCS_VER}/richdocuments-v${RICHDOCS_VER}.tar.gz"
-
-  # Configure Collabora (NextCloud Office)
-  echo "  Configuring Collabora integration..."
-  docker exec -u www-data nextcloud php occ config:app:set richdocuments wopi_url --value="http://collabora:9980"
-  docker exec -u www-data nextcloud php occ config:app:set richdocuments public_wopi_url --value="http://${AP_IP}:9980"
-  docker exec -u www-data nextcloud php occ config:app:set richdocuments wopi_allowlist --value="10.42.0.0/24,172.18.0.0/16"
-  ok "Collabora WOPI configured"
+  # Configure Collabora (NextCloud Office), if richdocuments made it in
+  if docker exec -u www-data nextcloud php occ app:list --enabled 2>/dev/null | grep -q "  - richdocuments:"; then
+    echo "  Configuring Collabora integration..."
+    docker exec -u www-data nextcloud php occ config:app:set richdocuments wopi_url --value="http://collabora:9980"
+    docker exec -u www-data nextcloud php occ config:app:set richdocuments public_wopi_url --value="http://${AP_IP}:9980"
+    docker exec -u www-data nextcloud php occ config:app:set richdocuments wopi_allowlist --value="10.42.0.0/24,172.16.0.0/12"
+    ok "Collabora WOPI configured"
+  fi
 }
 
 # =============================================================================
@@ -460,42 +451,6 @@ verify_installation() {
 }
 
 # =============================================================================
-#  PHASE 7.5 — Tailscale
-# =============================================================================
-
-install_tailscale() {
-  log "Phase 8: Tailscale"
-
-  if command_exists tailscale; then
-    ok "Tailscale already installed ($(tailscale version 2>/dev/null | head -1))"
-  else
-    echo "  Installing Tailscale..."
-    curl -fsSL https://tailscale.com/install.sh | sh
-    ok "Tailscale installed"
-  fi
-
-  systemctl enable --now tailscaled 2>/dev/null || true
-  ok "tailscaled service enabled"
-
-  # Check if already authenticated
-  local ts_status
-  ts_status=$(tailscale status 2>&1 || true)
-  if echo "$ts_status" | grep -qiE "stopped|logged out|not logged in|NeedsLogin"; then
-    echo ""
-    echo "  Activating Tailscale with SSH enabled..."
-    echo "  A login URL will appear — open it in a browser to authenticate."
-    echo ""
-    tailscale up --ssh --hostname="${MACHINE_HOSTNAME}" --accept-routes
-    ok "Tailscale activated (hostname: ${MACHINE_HOSTNAME}, SSH enabled)"
-  else
-    # Already connected, update settings
-    tailscale set --ssh --hostname="${MACHINE_HOSTNAME}" 2>/dev/null || \
-      tailscale up --ssh --hostname="${MACHINE_HOSTNAME}" --accept-routes 2>/dev/null || true
-    ok "Tailscale already connected — updated hostname to ${MACHINE_HOSTNAME} with SSH"
-  fi
-}
-
-# =============================================================================
 #  MAIN
 # =============================================================================
 
@@ -519,16 +474,19 @@ main() {
   install_nextcloud
   install_nextcloud_apps
   setup_walled_garden
-  install_tailscale
-  verify_installation
 
   # Enable and start walled garden via systemd (never call start_ap.sh directly
-  # — it ends with exec sleep infinity and would hang the install script here)
+  # — it ends with exec sleep infinity and would hang the install script here).
+  # This must happen right after setup_walled_garden, before any optional/
+  # networked phase below — a failure there must never prevent the AP and
+  # NextCloud (the core of this server) from coming up.
   log "Enabling and starting walled garden..."
   chmod +x "$SCRIPT_DIR/start_ap.sh" "$SCRIPT_DIR/stop_ap.sh"
   systemctl enable walled-garden him-nc-trust
   systemctl start walled-garden
   ok "Walled garden enabled on boot and started"
+
+  verify_installation
 
   echo ""
   echo "============================================================"
@@ -544,7 +502,7 @@ main() {
   echo ""
   echo "  Wi-Fi:  SSID=$SSID  Password=$PASSPHRASE"
   echo ""
-  echo "  Tailscale SSH: enabled (hostname: ${MACHINE_HOSTNAME})"
+  echo "  Optional remote access:  sudo ./install-tailscale.sh"
   echo ""
   echo "  NOTE: Log out and back in for docker group to take effect."
   echo "============================================================"

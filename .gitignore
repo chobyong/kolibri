@@ -2,6 +2,7 @@
 hostapd.conf
 dnsmasq.conf
 server.log
+install.log
 __pycache__/
 *.pyc
 
