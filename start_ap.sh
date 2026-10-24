@@ -47,6 +47,10 @@ echo "Cleaning up previous instances..."
 pkill hostapd 2>/dev/null || true
 pkill dnsmasq 2>/dev/null || true
 pkill -f "python3 ${SCRIPT_DIR}/server.py" 2>/dev/null || true
+# Wait for old hostapd to fully release the nl80211 interface; otherwise the
+# new one fails with "Match already configured".
+for i in $(seq 1 10); do pgrep -x hostapd >/dev/null || break; sleep 0.5; done
+pkill -9 -x hostapd 2>/dev/null || true
 sleep 1
 
 echo "Removing $IFACE from NetworkManager..."
@@ -90,14 +94,24 @@ log-queries
 log-dhcp
 EOF
 
-echo "Starting hostapd (in background, detached)..."
-nohup hostapd "$HOSTAPD_CONF" > /tmp/hostapd-him.log 2>&1 &
-disown $!
+# Retry once: hostapd can fail with "Match already configured" if the
+# previous nl80211 owner hasn't fully released the interface yet.
+for attempt in 1 2; do
+  echo "Starting hostapd (in background, detached, attempt $attempt)..."
+  nohup hostapd "$HOSTAPD_CONF" > /tmp/hostapd-him.log 2>&1 &
+  disown $!
 
-echo "Waiting for AP to come up (COUNTRY_UPDATE takes ~10s)..."
-for i in $(seq 1 30); do
-  if ip link show "$IFACE" 2>/dev/null | grep -q "state UP"; then break; fi
-  sleep 1
+  echo "Waiting for AP to come up (COUNTRY_UPDATE takes ~10s)..."
+  for i in $(seq 1 30); do
+    if ip link show "$IFACE" 2>/dev/null | grep -q "state UP"; then break 2; fi
+    grep -q "Match already configured" /tmp/hostapd-him.log 2>/dev/null && break
+    sleep 1
+  done
+  [ "$attempt" = 2 ] && break
+  echo "hostapd failed to start; resetting $IFACE and retrying..."
+  pkill -x hostapd 2>/dev/null || true
+  sleep 3
+  ip link set "$IFACE" down 2>/dev/null || true
 done
 if ! ip link show "$IFACE" 2>/dev/null | grep -q "state UP"; then
   echo "ERROR: AP interface did not come up within 30s"
